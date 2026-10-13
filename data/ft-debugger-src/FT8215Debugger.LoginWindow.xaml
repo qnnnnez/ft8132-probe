@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="FT8215Debugger.LoginWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Admin Login" Height="157" Width="300" Background="#FFFFEBCD" ResizeMode="NoResize" WindowStartupLocation="CenterScreen" xmlns:ft8215debugger="clr-namespace:FT8215Debugger">
+  <Grid>
+    <Label Name="label1" Margin="28,26,0,0" HorizontalAlignment="Left" Width="83" Height="25" VerticalAlignment="Top" FontSize="14">Password</Label>
+    <Button Name="btn_OK" Height="23" HorizontalAlignment="Left" Margin="46,0,0,17" Style="{StaticResource CircleButtonStyle}" VerticalAlignment="Bottom" Width="75" Click="btn_OK_Click">Ok</Button>
+    <Button Name="btn_Cancel" Height="23" HorizontalAlignment="Right" Margin="0,0,18,17" Style="{StaticResource CircleButtonStyle}" VerticalAlignment="Bottom" Width="75" Click="btn_Cancel_Click">Cancel</Button>
+    <PasswordBox Name="passwordBox_Super" Height="23" Margin="112,28,32,0" VerticalAlignment="Top" KeyDown="passwordBox_Super_KeyDown" />
+  </Grid>
+</Window>

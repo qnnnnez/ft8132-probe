@@ -51,6 +51,32 @@ Log level defaults to `info` (`ESP_LOG` in `.cargo/config.toml`).
 | `usbdisk2` | `src/bin/usbdisk2.rs` | SCSI / BBB via vendored `usbd-storage` |
 | `usbdisk3` | `src/bin/usbdisk3.rs` | MSC via in-tree `usbd_mass_storage` |
 
+## Host CLI
+
+Python CLI in `host/ft8132/` speaks the same SCSI vendor CDBs as FT8132Debugger (`F0 F0` auth, `FD`/`FF` register and Find). Linux only (`SG_IO` on `/dev/sg*`).
+
+```bash
+cd host/ft8132
+uv sync
+uv run ft8132 --help
+uv run ft8132 list
+uv run ft8132 find
+uv run ft8132 state
+uv run ft8132 stop            # writes 0x02/0x03 = 0 (not a full debug download)
+uv run ft8132 speed 30
+uv run ft8132 direction 0
+uv run ft8132 regs dump --json dump.json --bin dump.bin
+uv run ft8132 reg get 0x04 --typed
+```
+
+The sg node needs read/write access. Example udev rule:
+
+```
+SUBSYSTEM=="scsi_generic", ATTRS{idVendor}=="1b3f", ATTRS{idProduct}=="8000", MODE="0660", GROUP="plugdev"
+```
+
+`start` / `stop` / `speed` only change the live I2C speed command. They assume Debug parameters are already on the chip.
+
 ## Layout
 
 ```
@@ -62,6 +88,7 @@ src/
   led.rs                 # WS2812 over RMT
   bin/                   # Firmware entry points (see table above)
 vendor/usbd-storage/     # Path dependency (BBB + SCSI)
+host/ft8132/             # Python CLI (uv) for usbdisk2 SCSI
 ```
 
 ## License / vendor

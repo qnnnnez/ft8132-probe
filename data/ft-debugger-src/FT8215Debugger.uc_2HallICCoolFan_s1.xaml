@@ -1,0 +1,232 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UserControl x:Class="FT8215Debugger.uc_2HallICCoolFan_s1" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Width="830" xmlns:ft8215debugger="clr-namespace:FT8215Debugger">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="300" />
+      <RowDefinition />
+    </Grid.RowDefinitions>
+    <DockPanel Grid.Row="0">
+      <GroupBox Header="HallParamCfg" Width="300">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="85" />
+            <ColumnDefinition />
+            <ColumnDefinition Width="35" />
+          </Grid.ColumnDefinitions>
+          <Label Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">hall0__rev__en</Label>
+          <UniformGrid Grid.Row="0" Grid.Column="1" Rows="1" VerticalAlignment="Center">
+            <RadioButton Name="radioBtn_Hall0RevDis">Disable</RadioButton>
+            <RadioButton Name="radioBtn_Hall0RevEn">Enable</RadioButton>
+          </UniformGrid>
+          <Label Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">hall1__rev__en</Label>
+          <UniformGrid Grid.Row="1" Grid.Column="1" Rows="1" VerticalAlignment="Center">
+            <RadioButton Name="radioBtn_Hall1RevDis">Disable</RadioButton>
+            <RadioButton Name="radioBtn_Hall1RevEn">Enable</RadioButton>
+          </UniformGrid>
+          <Label Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">hall__swi__md</Label>
+          <Slider Name="slider_HallSwiMd" Grid.Row="2" Grid.Column="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <TextBlock Name="textBlock_HallSwiMd" Grid.Row="2" Grid.Column="2" Text="0" VerticalAlignment="Center" Foreground="#FF000000" />
+          <Label Grid.Row="3" Grid.Column="0" VerticalAlignment="Center">hall__sta__op</Label>
+          <UniformGrid Grid.Row="3" Grid.Column="1" Rows="1" VerticalAlignment="Center">
+            <RadioButton Name="radioBtn_HallStaOpDis">Disable</RadioButton>
+            <RadioButton Name="radioBtn_HallStaOpEn">Enable</RadioButton>
+          </UniformGrid>
+          <Label Name="label_HallComMd" Grid.Row="5" VerticalAlignment="Center">hall__com__md</Label>
+          <UniformGrid Grid.Row="5" Grid.Column="1" Rows="1" VerticalAlignment="Center">
+            <RadioButton Name="radioBtn_HallComMd0">0</RadioButton>
+            <RadioButton Name="radioBtn_HallComMd1">-30</RadioButton>
+            <RadioButton Name="radioBtn_HallComMd3">30</RadioButton>
+            <RadioButton Name="radioBtn_HallComMd2" Visibility="Hidden">-60</RadioButton>
+          </UniformGrid>
+          <Label Grid.Row="4" Grid.Column="0" VerticalAlignment="Center">hall__modsel</Label>
+          <UniformGrid Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" Margin="0,8,0,0">
+            <RadioButton Name="radioBtn_HallIC" Checked="radioBtn_HallIC_Checked">IC</RadioButton>
+            <RadioButton Name="radioBtn_HallSensor" Checked="radioBtn_HallSensor_Checked">sensor</RadioButton>
+          </UniformGrid>
+        </Grid>
+      </GroupBox>
+      <GroupBox Header="Motor&amp;Hardware" Width="200">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="80" />
+            <ColumnDefinition />
+          </Grid.ColumnDefinitions>
+          <Label Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">Pole-Pairs</Label>
+          <TextBox Name="textBox_JiDuiShu" Grid.Row="0" Grid.Column="1" Width="80" Height="23" HorizontalAlignment="Left" MaxLength="2" ToolTip="range:1-20 integer" />
+          <Label Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">Rs(Ω)</Label>
+          <TextBox Name="textBox_DianZu" Grid.Row="1" Grid.Column="1" Width="80" Height="23" HorizontalAlignment="Left" ToolTip="range:0.000-200.0 float" MaxLength="9" />
+          <Label Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">Ls(H)</Label>
+          <TextBox Name="textBox_DianGan" Grid.Row="2" Grid.Column="1" Width="80" Height="23" HorizontalAlignment="Left" ToolTip="range:0.000000-1.000000 float" MaxLength="9" />
+          <Label Grid.Row="3" Grid.Column="0" VerticalAlignment="Center">Ke</Label>
+          <TextBox Name="textBox_FanDianDongShi" Grid.Row="3" Grid.Column="1" Width="80" Height="23" HorizontalAlignment="Left" ToolTip="range:0.0000-100.0000 float" MaxLength="11" />
+          <Label Grid.Row="4" Grid.Column="0" VerticalAlignment="Center">Rsample(Ω)</Label>
+          <TextBox Name="textBox_CaiYandDianZu" Grid.Row="4" Grid.Column="1" Width="80" Height="23" HorizontalAlignment="Left" ToolTip="range:0.001-2.000 float" MaxLength="5" />
+          <Label Grid.Row="5" Grid.Column="0" VerticalAlignment="Center">Amp</Label>
+          <ComboBox Name="comboBox_FanDaBeiShu" Grid.Row="5" Grid.Column="1" Width="80" Height="23" HorizontalAlignment="Left" />
+        </Grid>
+      </GroupBox>
+      <GroupBox Header="FOC Parameter">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="80" />
+            <ColumnDefinition />
+            <ColumnDefinition Width="55" />
+          </Grid.ColumnDefinitions>
+          <Label VerticalAlignment="Center">BaseFreq</Label>
+          <Slider Name="slider_BaseFreq" Grid.Row="0" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <BulletDecorator Grid.Row="0" Grid.Column="2" VerticalAlignment="Center">
+            <BulletDecorator.Bullet>
+              <TextBlock Name="txtBlock_BaseFreq" Foreground="#FF000000" Text="{Binding ElementName=slider_BaseFreq, Path=Value, Mode=OneWay}" />
+            </BulletDecorator.Bullet>
+            <Label Foreground="#FF000000">Hz</Label>
+          </BulletDecorator>
+          <TextBlock Name="txtBlock_SampleTime" Grid.Row="1" Grid.Column="5" Foreground="#FF000000" VerticalAlignment="Center" Text="{Binding ElementName=slider_SampleTime, Path=Value, Mode=OneWay}" />
+          <Label Grid.Row="1" VerticalAlignment="Center">SampleTime</Label>
+          <Slider Name="slider_SampleTime" Grid.Row="1" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <Label Grid.Row="2" VerticalAlignment="Center">SPD__BW</Label>
+          <Slider Name="slider_SPDBw" Grid.Row="2" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <TextBlock Name="txtBlock_SpdBw" Grid.Row="2" Grid.Column="5" Foreground="#FF000000" VerticalAlignment="Center" Text="{Binding ElementName=slider_SPDBw, Path=Value, Mode=OneWay}" />
+          <Label Grid.Row="3" VerticalAlignment="Center">LeadAngle</Label>
+          <Slider Name="slider_LeadAngle" Grid.Row="3" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <BulletDecorator Grid.Row="3" Grid.Column="2" VerticalAlignment="Center">
+            <BulletDecorator.Bullet>
+              <TextBlock Name="txtBlock_LeadAngle" Foreground="#FF000000" Text="{Binding ElementName=slider_LeadAngle, Path=Value, Mode=OneWay}" />
+            </BulletDecorator.Bullet>
+            <Label Foreground="#FF000000">°</Label>
+          </BulletDecorator>
+          <Label Grid.Row="4" VerticalAlignment="Center">TSMIN</Label>
+          <Slider Name="slider_TSMIN" Grid.Row="4" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Maximum="15" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <TextBlock Name="txtBlock_TSMIN" Grid.Row="4" Grid.Column="2" Width="20" Foreground="#FF000000" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding ElementName=slider_TSMIN, Path=Value, Mode=OneWay}" />
+          <Label Grid.Row="5" VerticalAlignment="Center">DT__SEL</Label>
+          <Slider Name="slider_DTSEL" Grid.Row="5" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <BulletDecorator Grid.Row="5" Grid.Column="2" VerticalAlignment="Center">
+            <BulletDecorator.Bullet>
+              <TextBlock Name="txtBlock_DTSEL" Text="{Binding ElementName=slider_DTSEL, Path=Value, Mode=OneWay}" />
+            </BulletDecorator.Bullet>
+            <Label Foreground="#FF000000">us</Label>
+          </BulletDecorator>
+          <Label Grid.Row="6" VerticalAlignment="Center">ATOBW</Label>
+          <TextBox Name="textBox_AtoBw" Grid.Row="6" Grid.Column="1" Width="50" Height="23" ToolTip="range:0-200 integer" MaxLength="3" HorizontalAlignment="Left" />
+        </Grid>
+      </GroupBox>
+    </DockPanel>
+    <Grid Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="300" />
+        <ColumnDefinition />
+      </Grid.ColumnDefinitions>
+      <GroupBox Header="Startup" Grid.Column="0">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="75" />
+            <ColumnDefinition />
+            <ColumnDefinition Width="40" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+          </Grid.RowDefinitions>
+          <Label Grid.ColumnSpan="2" Width="90" HorizontalAlignment="Left" VerticalAlignment="Center">ControlMode</Label>
+          <ComboBox Name="comboBox_ContrlMode" Grid.Column="1" Width="100" Height="23" Margin="10,0,0,0" HorizontalAlignment="Left" />
+          <Label Grid.Row="1" Grid.ColumnSpan="2" Width="80" HorizontalAlignment="Left" VerticalAlignment="Center">StartCurrent</Label>
+          <TextBox Name="textBox_StartCurrent" Grid.Column="1" Grid.Row="1" Width="80" Height="23" Margin="10,0,0,0" ToolTip="range:0.001-20.000 float" MaxLength="6" HorizontalAlignment="Left" />
+          <Label Grid.Row="2" VerticalAlignment="Center">EFREQMin</Label>
+          <Slider Name="slider_EFreQMin" Grid.Row="2" Grid.Column="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <BulletDecorator Grid.Row="2" Grid.Column="2" VerticalAlignment="Center">
+            <BulletDecorator.Bullet>
+              <TextBlock Name="textBlock_EFreQMin" Foreground="#FF000000" Text="{Binding ElementName=slider_EFreQMin, Path=Value, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" />
+            </BulletDecorator.Bullet>
+            <Label>%</Label>
+          </BulletDecorator>
+          <Label Grid.Row="3" VerticalAlignment="Center">CloSpeed</Label>
+          <UniformGrid Grid.Row="3" Grid.Column="1" Rows="1" VerticalAlignment="Center">
+            <RadioButton Name="radioButton_CloSpeed_0x">0.5x</RadioButton>
+            <RadioButton Name="radioButton_CloSpeed_1x">1x</RadioButton>
+            <RadioButton Name="radioButton_CloSpeed_2x">2x</RadioButton>
+            <RadioButton Name="radioButton_CloSpeed_4x">4x</RadioButton>
+          </UniformGrid>
+          <Label Grid.Row="4" VerticalAlignment="Center">EFREQHold</Label>
+          <UniformGrid Grid.Row="4" Grid.Column="1" Rows="1" VerticalAlignment="Center">
+            <RadioButton Name="radioButton_EFreQHold_1x">1x</RadioButton>
+            <RadioButton Name="radioButton_EFreQHold_2x">2x</RadioButton>
+            <RadioButton Name="radioButton_EFreQHold_4x">4x</RadioButton>
+            <RadioButton Name="radioButton_EFreQHold_8x">8x</RadioButton>
+          </UniformGrid>
+        </Grid>
+      </GroupBox>
+      <GroupBox Header="Run" Grid.Column="1">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="70" />
+            <ColumnDefinition Width="80" />
+            <ColumnDefinition Width="70" />
+            <ColumnDefinition />
+            <ColumnDefinition Width="60" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+            <RowDefinition Height="35" />
+          </Grid.RowDefinitions>
+          <Label VerticalAlignment="Center">DQ__KP</Label>
+          <TextBox Name="textBox_DQKp" Grid.Row="0" Grid.Column="1" Width="80" Height="23" ToolTip="range:0-4.0 float" MaxLength="7" />
+          <Label Grid.Row="0" Grid.Column="2" VerticalAlignment="Center">Stb__Inc</Label>
+          <Slider Name="slider_StbInc" Grid.Row="0" Grid.Column="3" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <TextBlock Name="textBlock_StbInc" Grid.Row="0" Grid.Column="4" Foreground="#FF000000" VerticalAlignment="Center" Text="{Binding ElementName=slider_StbInc, Path=Value, Mode=OneWay}" />
+          <Label Grid.Row="1" VerticalAlignment="Center">DQ__KI</Label>
+          <TextBox Name="textBox_DQKi" Grid.Row="1" Grid.Column="1" Width="80" Height="23" ToolTip="range:0-0.500 float" MaxLength="7" />
+          <Label Grid.Row="1" Grid.Column="2" VerticalAlignment="Center">Sta__Inc</Label>
+          <Slider Name="slider_StaInc" Grid.Row="1" Grid.Column="3" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" Foreground="#FFFF0000" VerticalAlignment="Center" />
+          <TextBlock Name="textBlock_StaInc" Grid.Row="1" Grid.Column="4" Foreground="#FF000000" VerticalAlignment="Center" Text="{Binding ElementName=slider_StaInc, Path=Value, Mode=OneWay}" />
+          <Label Grid.Row="2" VerticalAlignment="Center">WKP</Label>
+          <TextBox Name="textBox_WKp" Grid.Row="2" Grid.Column="1" Width="80" Height="23" ToolTip="range:0-4.0 float" MaxLength="7" />
+          <Label Grid.Row="3" VerticalAlignment="Center">WKI</Label>
+          <TextBox Name="textBox_WKi" Grid.Row="3" Grid.Column="1" Width="80" Height="23" ToolTip="range:0-0.500 float" MaxLength="7" />
+          <Label Grid.Row="4" VerticalAlignment="Center">WOutMax</Label>
+          <Slider Name="slider_WOutMax" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Width="280" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" Foreground="#FFFF0000" HorizontalAlignment="Left" VerticalAlignment="Center" />
+          <TextBox Name="textBox_WOutMax" Grid.Row="4" Grid.Column="3" Width="35" Height="25" Margin="80,0,0,0" Foreground="#FF000000" ToolTip="range:0-63 integer" MaxLength="2" Text="{Binding ElementName=slider_WOutMax, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+          <BulletDecorator Grid.Row="4" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
+            <BulletDecorator.Bullet>
+              <TextBlock Name="textBlock_WOutMax" Foreground="#FF000000">0.000</TextBlock>
+            </BulletDecorator.Bullet>
+            <Label Foreground="#FF000000">%</Label>
+          </BulletDecorator>
+        </Grid>
+      </GroupBox>
+    </Grid>
+  </Grid>
+</UserControl>

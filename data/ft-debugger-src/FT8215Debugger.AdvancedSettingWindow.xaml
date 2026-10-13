@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="FT8215Debugger.AdvancedSettingWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Advanced Setting" Height="400" Width="750" WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize" xmlns:ft8215debugger="clr-namespace:FT8215Debugger" Closing="Window_Closing">
+  <Grid>
+    <GroupBox Grid.Row="0" Header="Advanced Selection" Margin="0,2,0,2">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+          <RowDefinition Height="30" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="0.7*" />
+          <ColumnDefinition Width="1.8*" />
+          <ColumnDefinition Width="0.5*" />
+          <ColumnDefinition Width="1.1*" />
+          <ColumnDefinition Width="1.8*" />
+          <ColumnDefinition Width="0.5*" />
+        </Grid.ColumnDefinitions>
+        <Label Name="label_AOEK3" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">AO__ek3</Label>
+        <TextBox Name="textBox_MfpEk3" Grid.Row="0" Grid.Column="1" Margin="2,4,0,2" Width="80" ToolTip="range:0.01-100.0 float" MaxLength="6" HorizontalAlignment="Left" />
+        <Label Name="label6" Grid.Row="1" Grid.Column="0">SegEn</Label>
+        <ComboBox Name="comboBox_Seg7En" Grid.Row="1" Grid.Column="1" Margin="2,2,0,2" Width="100" HorizontalAlignment="Left" />
+        <Label Name="label14" Grid.Row="2" Grid.Column="0">LeadAngle</Label>
+        <Slider Name="slider_LeadAngle" Grid.Row="2" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="1,2,0,2" IsMoveToPointEnabled="True" />
+        <TextBlock Name="txtBlock_LeadAngle" Grid.Row="2" Grid.Column="2" Margin="2,4.979,17,4.979" Text="{Binding ElementName=slider_LeadAngle, Path=Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+        <Label Name="label_Angle" Grid.Row="2" Grid.Column="2" HorizontalAlignment="Right" Width="15" Margin="0,0,5,5">°</Label>
+        <Label Name="label15" Grid.Row="3" Grid.Column="0">EKNum</Label>
+        <Slider Name="slider_EKNum" Grid.Row="3" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="1,2,0,2" IsMoveToPointEnabled="True" />
+        <TextBlock Name="txtBlock_EKNum" Grid.Row="3" Grid.Column="2" Margin="2,4.979,0,4.979" HorizontalAlignment="Left" Width="6.408" Text="{Binding ElementName=slider_EKNum, Path=Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+        <Label Grid.Row="4" Grid.Column="0">TSMIN</Label>
+        <Slider Name="slider_TSMIN" Grid.Row="4" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="1,2,0,2" IsMoveToPointEnabled="True" Maximum="15" Foreground="#FFFF0000" />
+        <TextBlock Name="txtBlock_TSMIN" Grid.Row="4" Grid.Column="2" Margin="2,4.979,0,4.979" HorizontalAlignment="Left" Width="20" Text="{Binding ElementName=slider_TSMIN, Path=Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+        <Label Grid.Row="5" Grid.Column="0">DT__SEL</Label>
+        <Slider Name="slider_DTSEL" Grid.Row="5" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="1,2,0,2" IsMoveToPointEnabled="True" />
+        <TextBlock Name="txtBlock_DTSEL" Grid.Row="5" Grid.Column="2" Margin="2,4.979,0,4.979" HorizontalAlignment="Left" Width="25" Text="{Binding ElementName=slider_DTSEL, Path=Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+        <Label Name="label_DTSEL" Grid.Row="5" Grid.Column="2" HorizontalAlignment="Right" Width="22" Margin="0,1,0,0">us</Label>
+        <Label Name="label38" Grid.Row="6" Grid.Column="0">StaIncTime</Label>
+        <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.Column="1">
+          <RadioButton Name="radioButton_StaIncTime_1s" Grid.Row="6" Grid.Column="1" Margin="0,7,0,3" HorizontalAlignment="Left" Width="50">1s</RadioButton>
+          <RadioButton Name="radioButton_StaIncTime_2s" Grid.Row="6" Grid.Column="1" Margin="0,7,0,3" HorizontalAlignment="Left" Width="50">2s</RadioButton>
+          <RadioButton Name="radioButton_StaIncTime_4s" Grid.Row="6" Grid.Column="1" Margin="0,7,0,3" HorizontalAlignment="Left" Width="50">4s</RadioButton>
+          <RadioButton Name="radioButton_StaIncTime_6s" Grid.Row="6" Grid.Column="1" Margin="0,7,0,3" HorizontalAlignment="Left" Width="50">6s</RadioButton>
+        </StackPanel>
+        <Label Name="label49" Grid.Row="0" Grid.Column="3" VerticalAlignment="Center">RPD_Align</Label>
+        <ComboBox Name="comboBox_RPDAlign" Grid.Row="0" Grid.Column="4" Margin="2,2,0,2" Width="100" HorizontalAlignment="Left" />
+        <Label Name="label52" Grid.Row="1" Grid.Column="3" VerticalAlignment="Bottom">RPD__ADC__CYC</Label>
+        <StackPanel Orientation="Horizontal" Grid.Column="4" Grid.Row="1">
+          <RadioButton Name="radioBtn_RPD10_6us" Grid.Column="4" Grid.Row="1" Margin="0,0,0,0" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left">Short</RadioButton>
+          <RadioButton Name="radioBtn_RPD10_4us" Grid.Column="4" Grid.Row="1" Margin="0,0,0,0" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left">Long</RadioButton>
+        </StackPanel>
+        <Label Name="label53" Grid.Row="2" Grid.Column="3" VerticalAlignment="Bottom">RPD__ADC__Timing</Label>
+        <StackPanel Orientation="Horizontal" Grid.Column="4" Grid.Row="2">
+          <RadioButton Name="radioBtn_RPD11_2us" Grid.Column="4" Grid.Row="2" Margin="0,0,0,0" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left">Slow</RadioButton>
+          <RadioButton Name="radioBtn_RPD11_4us" Grid.Column="4" Grid.Row="2" Margin="0,0,0,0" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left">Fast</RadioButton>
+        </StackPanel>
+        <Label Name="label54" Grid.Row="3" Grid.Column="3" VerticalAlignment="Center">RPDTime</Label>
+        <Slider Name="slider_RPD12" Grid.Column="4" Grid.Row="3" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Margin="0,2,0,0" IsMoveToPointEnabled="True" Maximum="63" Foreground="#FFFF0000" />
+        <TextBlock Name="textBlock_RPD12" Grid.Column="5" Grid.Row="3" Margin="6,2,4,10" HorizontalAlignment="Left" Width="30" Text="{Binding ElementName=slider_RPD12, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Label Name="label50" Grid.Row="4" Grid.Column="3">AlignDuty</Label>
+        <Label Name="label51" Grid.Row="5" Grid.Column="3">AlignTime</Label>
+        <Label Name="label56" Grid.Row="6" Grid.Column="3">RPDStrength</Label>
+        <Slider Name="slider_AlignDuty" Grid.Column="4" Grid.Row="4" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Margin="0,0,0,0" IsMoveToPointEnabled="True" Maximum="15" Foreground="#FFFF0000" />
+        <TextBlock Name="textBlock_AlignDuty" Grid.Column="5" Grid.Row="4" Margin="6,0,0,0" Text="0" HorizontalAlignment="Left" Width="25" VerticalAlignment="Center" />
+        <Label Grid.Column="5" Grid.Row="4" HorizontalAlignment="Right" Margin="0,0,10,0">%</Label>
+        <Slider Name="slider_AlignTime" Grid.Column="4" Grid.Row="5" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Margin="0,0,0,0" IsMoveToPointEnabled="True" Maximum="15" Foreground="#FFFF0000" />
+        <TextBlock Name="textBlock_AlignTime" Grid.Column="5" Grid.Row="5" Margin="6,0,0,0" Text="0" HorizontalAlignment="Left" Width="25" VerticalAlignment="Center" />
+        <Label Grid.Column="5" Grid.Row="5" HorizontalAlignment="Right" Margin="0,0,10,0">s</Label>
+        <Slider Name="slider_RPD21" Grid.Column="4" Grid.Row="6" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Margin="0,0,0,0" IsMoveToPointEnabled="True" Maximum="3" Foreground="#FFFF0000" />
+        <TextBlock Name="textBlock_RPD21" Grid.Column="5" Grid.Row="6" Margin="6,2,0,0" HorizontalAlignment="Left" Width="25" Text="{Binding ElementName=slider_RPD21, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Label Grid.Row="7" Grid.Column="0">Uvp__Thr</Label>
+        <Slider Name="slider_UvpThr" Grid.Row="7" Grid.Column="1" Margin="0,5,0,0" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" />
+        <TextBox Name="textBox_UvpThr" Grid.Row="7" Grid.Column="2" IsEnabled="False" Margin="0,5,2,0" />
+        <Label Grid.Row="8" Grid.Column="0">Ovp__Thr</Label>
+        <Slider Name="slider_OvpThr" Grid.Row="8" Grid.Column="1" Margin="0,5,0,0" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" />
+        <TextBox Name="textBox_OvpThr" Grid.Row="8" Grid.Column="2" Margin="0,5,2,0" IsEnabled="False" />
+        <Label Grid.Row="9" Grid.Column="0">carrier__sel</Label>
+        <StackPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="1">
+          <RadioButton Name="radioBtn_CarrierSel0" Grid.Row="9" Grid.Column="1" Margin="0" Width="50" VerticalAlignment="Center" HorizontalAlignment="Left">25k</RadioButton>
+          <RadioButton Name="radioBtn_CarrierSel1" Grid.Row="9" Grid.Column="1" Margin="0,0,0,0" Width="50" VerticalAlignment="Center" HorizontalAlignment="Left">42k</RadioButton>
+          <RadioButton Name="radioBtn_CarrierSel2" Grid.Row="9" Grid.Column="1" Margin="0,0,0,0" Width="50" VerticalAlignment="Center" HorizontalAlignment="Left">16k</RadioButton>
+          <RadioButton Name="radioBtn_CarrierSel3" Grid.Row="9" Grid.Column="1" Margin="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left">20k</RadioButton>
+        </StackPanel>
+        <Label Grid.Row="7" Grid.Column="3">McOff__Sel</Label>
+        <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="4">
+          <RadioButton Name="radioBtn_McOffSel0" Grid.Row="7" Grid.Column="4" Margin="0" Width="50" VerticalAlignment="Center" HorizontalAlignment="Left">1.6s</RadioButton>
+          <RadioButton Name="radioBtn_McOffSel1" Grid.Row="7" Grid.Column="4" Margin="0,0,0,0" Width="50" VerticalAlignment="Center" HorizontalAlignment="Left">3.2s</RadioButton>
+          <RadioButton Name="radioBtn_McOffSel2" Grid.Row="7" Grid.Column="4" Margin="0,0,0,0" Width="50" VerticalAlignment="Center" HorizontalAlignment="Left">0s</RadioButton>
+          <RadioButton Name="radioBtn_McOffSel3" Grid.Row="7" Grid.Column="4" Margin="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left">6.5s</RadioButton>
+        </StackPanel>
+        <Label Grid.Row="8" Grid.Column="3">thecomp__sel</Label>
+        <Slider Name="slider_TheCompSel" Grid.Row="8" Grid.Column="4" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" />
+        <TextBlock Name="textBox_TheCompSel" Grid.Row="8" Grid.Column="5" Margin="6,2,0,0" Text="{Binding ElementName=slider_TheCompSel, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Label Grid.Row="9" Grid.Column="3">Limit__Sel</Label>
+        <Slider Name="slider_LimitSel" Grid.Row="9" Grid.Column="4" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" />
+        <TextBlock Name="textBlock_LimitSel" Grid.Row="9" Grid.Column="5" Margin="6,2,0,0" Text="{Binding ElementName=slider_LimitSel, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+      </Grid>
+    </GroupBox>
+  </Grid>
+</Window>

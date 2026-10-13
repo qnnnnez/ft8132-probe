@@ -1,0 +1,15 @@
+[project]
+name = "ft8132"
+version = "0.1.0"
+description = "Host CLI for the FT8132 USB SCSI probe (usbdisk2 / official debugger CDBs)."
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.12",
+]
+
+[project.scripts]
+ft8132 = "ft8132.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

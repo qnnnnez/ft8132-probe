@@ -94,6 +94,21 @@ impl<'a, 'alloc, Bus: UsbBus + 'alloc, Buf: BorrowMut<[u8]>>
         self.class.transport.try_write_data_all(src)
     }
 
+    /// Host-to-device BOT data phase.
+    pub fn is_data_out(&self) -> bool {
+        self.class.transport.is_data_out()
+    }
+
+    /// Device-to-host BOT data phase.
+    pub fn is_data_in(&self) -> bool {
+        self.class.transport.is_data_in()
+    }
+
+    /// CBW `dCBWDataTransferLength`.
+    pub fn data_transfer_len(&self) -> u32 {
+        self.class.transport.data_transfer_len()
+    }
+
     pub fn pass(self) {
         self.class.transport.set_status(CommandStatus::Passed);
     }

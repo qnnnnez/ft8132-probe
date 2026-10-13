@@ -43,6 +43,11 @@ embedded-storage = "0.3.1"
 embassy-sync = { version = "0.7.2", features = ["log"]}
 usbd-storage = { path = "vendor/usbd-storage", features = ["bbb", "scsi"] }
 
+[features]
+default = []
+# In-firmware capture-seeded ASIC; no GPIO48/GPIO4 / I2C0 wiring required.
+mock-asic = []
+
 [profile.dev]
 # Rust debug is too slow.
 # For debug builds always builds with some optimization

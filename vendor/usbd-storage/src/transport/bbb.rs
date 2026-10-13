@@ -182,6 +182,21 @@ where
         self.cs = Some(status);
     }
 
+    /// Host-to-device data phase (BOT OUT).
+    pub fn is_data_out(&self) -> bool {
+        matches!(self.cbw.direction, DataDirection::Out)
+    }
+
+    /// Device-to-host data phase (BOT IN).
+    pub fn is_data_in(&self) -> bool {
+        matches!(self.cbw.direction, DataDirection::In)
+    }
+
+    /// CBW `dCBWDataTransferLength`.
+    pub fn data_transfer_len(&self) -> u32 {
+        self.cbw.data_transfer_len
+    }
+
     /// Returns a Command Block if present
     pub fn get_command(&self) -> Option<CommandBlock<'_>> {
         match self.state {

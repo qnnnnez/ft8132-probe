@@ -1,0 +1,147 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="FT8215Debugger.SpecialSettingWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="SpecialRegSetting" Height="600" Width="800" Background="#FFFFEBCD" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow" xmlns:ft8215debugger="clr-namespace:FT8215Debugger" Loaded="Window_Loaded">
+  <Grid>
+    <GroupBox Name="groupBox1" Header="Special Setting" Margin="0,0,6,50">
+      <Grid>
+        <StackPanel>
+          <BulletDecorator Margin="10,20,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">isd__dir__rev</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_IsdDirRev" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_IsdDirRev_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,15,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">OVP__SEL</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_OvpSel" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_OvpSel_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">DPM__DIS</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_DpmDis" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_DpmDis_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">FOC__DIS</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_Foc_Dis" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_Foc_Dis_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">BOOT__MOD</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_BootMod" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_BootMod_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">TSD__DIS</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_TsdDis" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_TsdDis_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">hall__ltt__en</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_HallLttEn" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_HallLttEn_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">stall__tst__qmax</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_StallTstQmax" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_StallTstQmax_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">stall__tst__inc</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_StallTstInc" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_StallTstInc_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">stall__tst__en</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_StallTstEn" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_StallTstEn_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">drv__dis__mod</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_DrvDisMod" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_DrvDisMod_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Margin="10,10,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="90">TSD__SEL</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_TsdSel" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_TsdSel_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Height="28" Margin="10,10,0,0" VerticalAlignment="Top">
+            <BulletDecorator.Bullet>
+              <Label Width="90">cmp0__cksel</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_Cmp0CkSel" Width="80" HorizontalAlignment="Left" SelectionChanged="comboBox_Cmp0CkSel_SelectionChanged" />
+          </BulletDecorator>
+        </StackPanel>
+        <Label Name="label15" Margin="240,0,0,201" HorizontalAlignment="Left" Width="66" Height="28.182" VerticalAlignment="Bottom">CodeFile</Label>
+        <TextBox Name="textBox_ReadEfuse" Margin="306,0,116,202" Height="28.182" VerticalAlignment="Bottom" />
+        <Button Name="btn_OpenEfuse" FontSize="18" HorizontalAlignment="Right" Margin="0,0,23,196" Style="{StaticResource CircleButtonStyle}" Width="87" ToolTip="Open a txt file" Height="37.182" VerticalAlignment="Bottom" Click="btn_OpenEfuse_Click">Open</Button>
+        <Button Name="btn_ReadReg" FontSize="18" Height="46" Margin="353,0,295,60" Style="{StaticResource CircleButtonStyle}" VerticalAlignment="Bottom" Click="btn_ReadReg_Click_1">Read Reg</Button>
+        <Button Name="btn_ReadEfuse" FontSize="18" Height="49" Margin="353,0,295,149" Style="{StaticResource CircleButtonStyle}" VerticalAlignment="Bottom" Click="btn_ReadEfuse_Click">Read Efuse</Button>
+        <Label Name="label_readEfuseAdmin" HorizontalAlignment="Right" Margin="0,230,116,227" Width="57" ToolTip="Target crc value">0x0000</Label>
+        <Label Name="label_EfuseStatus" Height="28" HorizontalAlignment="Right" Margin="0,0,23,156" VerticalAlignment="Bottom" Width="254">Status1</Label>
+        <Label Name="label_RegStatus" Height="28" HorizontalAlignment="Right" Margin="0,0,22,66" VerticalAlignment="Bottom" Width="254">Status2</Label>
+        <Label Name="label_RVS_CUR_SEL" Height="28" HorizontalAlignment="Left" Margin="200,60,0,0" VerticalAlignment="Top" Width="90">RVS__CUR__SEL</Label>
+        <ComboBox Name="comboBox_RvsCurSel" Height="23" Margin="280,61,370,0" Width="80" VerticalAlignment="Top" SelectionChanged="comboBox_RvsCurSel_SelectionChanged" />
+        <Label Name="label_DigTest" Height="28" HorizontalAlignment="Left" Margin="200,97,0,0" VerticalAlignment="Top" Width="90">Dig__Test</Label>
+        <ComboBox Name="comboBox_DigTest" Height="23" Margin="280,99,370,0" Width="80" VerticalAlignment="Top" SelectionChanged="comboBox_DigTest_SelectionChanged" />
+        <Label Name="label_DigMoniCt" Height="28" HorizontalAlignment="Left" Margin="200,134,0,0" VerticalAlignment="Top" Width="90">dig__moni__ct</Label>
+        <ComboBox Name="comboBox_DigMoniCt" Height="23" Margin="280,135,370,0" Width="80" VerticalAlignment="Top" SelectionChanged="comboBox_DigMoniCt_SelectionChanged" />
+        <Label Height="28" Width="90" Margin="200,170,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">Hall__ov__md</Label>
+        <ComboBox Name="comboBox_HallOvMd" Height="23" Margin="280,170,370,0" Width="80" VerticalAlignment="Top" SelectionChanged="comboBox_HallOvMd_SelectionChanged" />
+        <Label Name="label_TSMIN" Height="28" HorizontalAlignment="Left" Margin="200,203,0,0" VerticalAlignment="Top" Width="90" Visibility="Hidden">CarrierFreq</Label>
+        <ComboBox Name="comboBox_TsMin" Height="23" Margin="280,203,370,0" Width="80" VerticalAlignment="Top" Visibility="Hidden" SelectionChanged="comboBox_TsMin_SelectionChanged" />
+        <CheckBox Name="checkBox_SmpMode" Height="19" Margin="0,29,245,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="120" Click="checkBox_SmpMode_Click">New Single</CheckBox>
+        <Label Name="label_TestMode" Height="28" HorizontalAlignment="Left" HorizontalContentAlignment="Left" Margin="390,61,0,0" VerticalAlignment="Top" Width="75">TestMode</Label>
+        <ComboBox Name="comboBox_TestMode" Height="23" HorizontalAlignment="Right" Margin="0,62,210,0" VerticalAlignment="Top" Width="80" SelectionChanged="comboBox_TestMode_SelectionChanged" />
+        <Label Height="28" HorizontalAlignment="Left" HorizontalContentAlignment="Left" Margin="390,97,0,0" VerticalAlignment="Top" Width="75">IREF__DIS</Label>
+        <ComboBox Name="comboBox_IrefDis" Height="23" HorizontalAlignment="Right" Margin="0,99,210,0" VerticalAlignment="Top" Width="80" SelectionChanged="comboBox_IrefDis_SelectionChanged" />
+        <CheckBox Name="checkBox_ShowHallComMd" Height="19" Width="130" Margin="395,130,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Opacity="0" IsEnabled="False" Click="checkBox_ShowHallComMd_Click">Show hall__com__md</CheckBox>
+        <StackPanel HorizontalAlignment="Right" Margin="0,20,10,0">
+          <BulletDecorator Height="28">
+            <BulletDecorator.Bullet>
+              <Label Width="70">UVLO__DIS</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_UvloDis" Width="80" Height="23" HorizontalAlignment="Right" SelectionChanged="comboBox_UvloDis_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Height="28" Margin="0,15,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="70">Ovp__Dis</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_OvpDis" Width="80" Height="23" HorizontalAlignment="Right" SelectionChanged="comboBox_OvpDis_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Height="28" Margin="0,15,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="102">Foc__Ld__VoltKp</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_FocLdVoltKp" Width="80" Height="23" HorizontalAlignment="Left" SelectionChanged="comboBox_FocLdVoltKp_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Height="28" Margin="0,15,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="102">Foc__Lq__VoltKp</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_FocLqVoltKp" Width="80" Height="23" HorizontalAlignment="Left" SelectionChanged="comboBox_FocLqVoltKp_SelectionChanged" />
+          </BulletDecorator>
+          <BulletDecorator Height="28" Margin="0,15,0,0">
+            <BulletDecorator.Bullet>
+              <Label Width="102">Foc__Flux__VoltKp</Label>
+            </BulletDecorator.Bullet>
+            <ComboBox Name="comboBox_FocFluxVoltKp" Width="80" Height="23" HorizontalAlignment="Left" SelectionChanged="comboBox_FocFluxVoltKp_SelectionChanged" />
+          </BulletDecorator>
+        </StackPanel>
+      </Grid>
+    </GroupBox>
+    <Button Name="btn_OK" Height="44" HorizontalAlignment="Right" Margin="0,0,233,4" Style="{StaticResource CircleButtonStyle}" VerticalAlignment="Bottom" Width="108" FontSize="20" Click="btn_OK_Click">OK</Button>
+    <Button Name="btn_Reset" Height="44" HorizontalAlignment="Left" Margin="227,0,0,4" Style="{StaticResource CircleButtonStyle}" VerticalAlignment="Bottom" Width="108" FontSize="20" ToolTip="reset UI Content to default" Click="btn_Reset_Click">Reset</Button>
+  </Grid>
+</Window>

@@ -1,31 +1,34 @@
-use esp_hal::{
-    gpio::{AnyPin, Level, Pin},
-    rmt::{PulseCode, TxChannelConfig, Rmt, TxChannelCreator, Channel, Tx},
-    Async,
-    peripherals::Peripherals,
-    i2c::master::{I2c, Config},
-    time::Rate,
-};
+use crate::asic::{AsicBus, I2C_ADDR};
 use core::marker::PhantomData;
-use core::result::Result;
+use esp_hal::{
+    delay::Delay,
+    gpio::{AnyPin, Level, Output, OutputConfig, Pin},
+    i2c::master::{Config, I2c},
+    peripherals::Peripherals,
+    rmt::{Channel, PulseCode, Rmt, Tx, TxChannelConfig, TxChannelCreator},
+    time::Rate,
+    Blocking,
+};
 
 /// Helper trait to locate a specific I2C peripheral from the Peripherals struct
 pub trait I2cInstance: 'static + esp_hal::i2c::master::Instance {
     fn steal_from(p: &Peripherals) -> Self;
 }
 
-// Implement for the available I2C peripherals on ESP32-S3
 impl I2cInstance for esp_hal::peripherals::I2C0<'static> {
-    fn steal_from(p: &Peripherals) -> Self { unsafe { p.I2C0.clone_unchecked() } }
+    fn steal_from(p: &Peripherals) -> Self {
+        unsafe { p.I2C0.clone_unchecked() }
+    }
 }
 impl I2cInstance for esp_hal::peripherals::I2C1<'static> {
-    fn steal_from(p: &Peripherals) -> Self { unsafe { p.I2C1.clone_unchecked() } }
+    fn steal_from(p: &Peripherals) -> Self {
+        unsafe { p.I2C1.clone_unchecked() }
+    }
 }
 
-pub enum Mode<'d> {
-    Rmt(Channel<'d, Async, Tx>),
-    I2c(I2c<'d, Async>),
-    None, // Transient state during switching
+enum Mode<'d> {
+    I2c(I2c<'d, Blocking>),
+    None,
 }
 
 pub struct FT8132<'d, I> {
@@ -35,142 +38,136 @@ pub struct FT8132<'d, I> {
     _i2c: PhantomData<I>,
 }
 
+#[derive(Debug)]
+pub enum Error {
+    I2c(esp_hal::i2c::master::Error),
+    Rmt,
+}
+
+impl From<esp_hal::i2c::master::Error> for Error {
+    fn from(e: esp_hal::i2c::master::Error) -> Self {
+        Self::I2c(e)
+    }
+}
+
 impl<'d, I: I2cInstance> FT8132<'d, I> {
     /// Consumes the Pin and I2C/RMT peripherals to prove ownership.
-    /// Starts in RMT mode (ready to knock).
-    pub fn new<P1, P2, R>(
-        sda: P1,
-        scl: P2,
-        _i2c: I,
-        _rmt: R
-    ) -> Self 
-    where 
+    pub fn new<P1, P2, R>(sda: P1, scl: P2, _i2c: I, _rmt: R) -> Self
+    where
         P1: Pin,
         P2: Pin,
     {
-        // Initial setup: Create RMT driver from stolen peripherals
-        // We know we own them because they were passed in (and consumed/dropped by not storing them)
-        let rmt_channel = {
-            let p = unsafe { Peripherals::steal() };
-            // Re-create RMT driver
-            let rmt = Rmt::new(p.RMT, Rate::from_mhz(80)).unwrap().into_async();
-            let pin = unsafe { AnyPin::steal(sda.number()) };
-            
-            // 80MHz / 8 = 10MHz. 1 tick = 100ns.
-            let tx_config = TxChannelConfig::default().with_clk_divider(8);
-            rmt.channel0.configure_tx(pin, tx_config).unwrap()
-        };
-
         Self {
             sda_num: sda.number(),
             scl_num: scl.number(),
-            state: Mode::Rmt(rmt_channel),
+            state: Mode::None,
             _i2c: PhantomData,
         }
     }
 
-    pub async fn knock(&mut self) {
-        self.switch_to_rmt();
+    fn delay_ms(ms: u32) {
+        Delay::new().delay_millis(ms);
+    }
 
-        if let Mode::Rmt(ref mut tx) = self.state {
-            tx.transmit(&RMT_PULSES).await.unwrap();
-        } else {
-            // If in I2C mode, we need to switch back to RMT?
-            // Or panic? For now, let's assume correct usage flow.
-            panic!("Not in RMT mode!");
+    /// Knock on SCL (SDA held low), then switch both pins to I2C master.
+    pub fn knock(&mut self) -> Result<(), Error> {
+        let prev = core::mem::replace(&mut self.state, Mode::None);
+        drop(prev);
+
+        {
+            let p = unsafe { Peripherals::steal() };
+            let sda = unsafe { AnyPin::steal(self.sda_num) };
+            let scl = unsafe { AnyPin::steal(self.scl_num) };
+            let _sda_low = Output::new(sda, Level::Low, OutputConfig::default());
+
+            let rmt = Rmt::new(unsafe { p.RMT.clone_unchecked() }, Rate::from_mhz(80)).unwrap();
+            let tx_config = TxChannelConfig::default()
+                .with_clk_divider(8)
+                .with_idle_output_level(Level::High)
+                .with_idle_output(true);
+            let tx: Channel<'_, Blocking, Tx> = rmt.channel0.configure_tx(scl, tx_config).unwrap();
+
+            Self::delay_ms(3);
+            let tx = tx.transmit(&RMT_PULSES).map_err(|_| Error::Rmt)?;
+            match tx.wait() {
+                Ok(_) => {}
+                Err(_) => return Err(Error::Rmt),
+            }
+            // `_sda_low` drops here, releasing SDA.
         }
+
+        Self::delay_ms(2);
+        self.switch_to_i2c();
+        Ok(())
     }
 
     pub fn switch_to_i2c(&mut self) {
-        // Take ownership of the current state replacing with None
-        let prev_state = core::mem::replace(&mut self.state, Mode::None);
-        
-        // Ensure we drop the RMT driver to release hardware resources
-        drop(prev_state);
+        let prev = core::mem::replace(&mut self.state, Mode::None);
+        drop(prev);
 
-        // Create I2C driver
         let i2c = {
             let p = unsafe { Peripherals::steal() };
             let i2c_peri = I::steal_from(&p);
             let sda = unsafe { AnyPin::steal(self.sda_num) };
             let scl = unsafe { AnyPin::steal(self.scl_num) };
-
-            I2c::new(i2c_peri, Config::default())
+            let cfg = Config::default().with_frequency(Rate::from_khz(100));
+            I2c::new(i2c_peri, cfg)
                 .unwrap()
                 .with_sda(sda)
                 .with_scl(scl)
-                .into_async()
         };
-
         self.state = Mode::I2c(i2c);
     }
 
-    pub fn switch_to_rmt(&mut self) {
-        // Take ownership of the current state replacing with None
-        let prev_state = core::mem::replace(&mut self.state, Mode::None);
-        
-        // Ensure we drop the I2C driver to release hardware resources
-        drop(prev_state);
-
-        // Re-create RMT driver
-        let rmt_channel = {
-            let p = unsafe { Peripherals::steal() };
-            // Re-create RMT driver
-            let rmt = Rmt::new(unsafe { p.RMT.clone_unchecked() }, Rate::from_mhz(80)).unwrap().into_async();
-            let pin = unsafe { AnyPin::steal(self.sda_num) };
-            
-            // 80MHz / 8 = 10MHz. 1 tick = 100ns.
-            let tx_config = TxChannelConfig::default().with_clk_divider(8);
-            rmt.channel0.configure_tx(pin, tx_config).unwrap()
-        };
-
-        self.state = Mode::Rmt(rmt_channel);
-    }
-    
-    pub fn get_i2c(&mut self) -> &mut I2c<'d, Async> {
-        self.switch_to_i2c();
-
-        if let Mode::I2c(ref mut i2c) = self.state {
-            i2c
-        } else {
-            panic!("Not in I2C mode!");
+    fn i2c(&mut self) -> &mut I2c<'d, Blocking> {
+        if !matches!(self.state, Mode::I2c(_)) {
+            self.switch_to_i2c();
+        }
+        match &mut self.state {
+            Mode::I2c(i2c) => i2c,
+            _ => unreachable!(),
         }
     }
+}
 
-    pub async fn i2c_read_byte(&mut self, address: u8) -> Result<u8, esp_hal::i2c::master::Error> {
-        self.switch_to_i2c();
-        let i2c = self.get_i2c();
+impl<I: I2cInstance> AsicBus for FT8132<'_, I> {
+    type Error = Error;
 
-        let mut buffer = [0u8; 1];
-        i2c.read_async(address, &mut buffer).await?;
-        
-        Ok(buffer[0])
+    fn knock(&mut self) -> Result<(), Self::Error> {
+        FT8132::knock(self)
     }
 
-    pub async fn i2c_write(&mut self, address: u8, data: &[u8]) -> Result<(), esp_hal::i2c::master::Error> {
-        self.switch_to_i2c();
-        let i2c = self.get_i2c();
+    fn i2c_write(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
+        self.i2c().write(I2C_ADDR, bytes).map_err(Into::into)
+    }
 
-        i2c.write_async(address, data).await
+    fn i2c_read(&mut self, buf: &mut [u8]) -> Result<(), Self::Error> {
+        self.i2c().read(I2C_ADDR, buf).map_err(Into::into)
+    }
+
+    fn exit_i2c(&mut self) -> Result<(), Self::Error> {
+        let prev = core::mem::replace(&mut self.state, Mode::None);
+        drop(prev);
+        Ok(())
     }
 }
 
 const RMT_PULSES: [PulseCode; 17] = [
-    PulseCode::new(Level::Low, 80, Level::Low, 100),    // 0 * 18
-    PulseCode::new(Level::High, 30, Level::Low, 10),    // 1110
-    PulseCode::new(Level::High, 10, Level::Low, 30),    // 1000
-    PulseCode::new(Level::High, 30, Level::Low, 10),    // 1110
-    PulseCode::new(Level::High, 10, Level::Low, 30),    // 1000
-    PulseCode::new(Level::High, 10, Level::Low, 30),    // 1000
-    PulseCode::new(Level::High, 30, Level::Low, 10),    // 1110
-    PulseCode::new(Level::High, 30, Level::Low, 10),    // 1110
-    PulseCode::new(Level::High, 40, Level::Low, 180),   // 1111 + 0 * 18
-    PulseCode::new(Level::High, 30, Level::Low, 10),    // 1110
-    PulseCode::new(Level::High, 10, Level::Low, 30),    // 1000
-    PulseCode::new(Level::High, 30, Level::Low, 10),    // 1110
-    PulseCode::new(Level::High, 10, Level::Low, 30),    // 1000
-    PulseCode::new(Level::High, 10, Level::Low, 30),    // 1000
-    PulseCode::new(Level::High, 30, Level::Low, 10),    // 1110
-    PulseCode::new(Level::High, 30, Level::Low, 10),    // 1110
-    PulseCode::new(Level::High, 40, Level::Low, 0),     // 1111
+    PulseCode::new(Level::Low, 80, Level::Low, 100), // 0 * 18
+    PulseCode::new(Level::High, 30, Level::Low, 10), // 1110
+    PulseCode::new(Level::High, 10, Level::Low, 30), // 1000
+    PulseCode::new(Level::High, 30, Level::Low, 10), // 1110
+    PulseCode::new(Level::High, 10, Level::Low, 30), // 1000
+    PulseCode::new(Level::High, 10, Level::Low, 30), // 1000
+    PulseCode::new(Level::High, 30, Level::Low, 10), // 1110
+    PulseCode::new(Level::High, 30, Level::Low, 10), // 1110
+    PulseCode::new(Level::High, 40, Level::Low, 180), // 1111 + 0 * 18
+    PulseCode::new(Level::High, 30, Level::Low, 10), // 1110
+    PulseCode::new(Level::High, 10, Level::Low, 30), // 1000
+    PulseCode::new(Level::High, 30, Level::Low, 10), // 1110
+    PulseCode::new(Level::High, 10, Level::Low, 30), // 1000
+    PulseCode::new(Level::High, 10, Level::Low, 30), // 1000
+    PulseCode::new(Level::High, 30, Level::Low, 10), // 1110
+    PulseCode::new(Level::High, 30, Level::Low, 10), // 1110
+    PulseCode::new(Level::High, 40, Level::Low, 0),  // 1111 (end marker)
 ];

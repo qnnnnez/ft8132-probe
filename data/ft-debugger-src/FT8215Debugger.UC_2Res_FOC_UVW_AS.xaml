@@ -1,0 +1,223 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UserControl x:Class="FT8215Debugger.UC_2Res_FOC_UVW_AS" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Height="495" Width="830" xmlns:ft8215debugger="clr-namespace:FT8215Debugger">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="507*" />
+      <RowDefinition Height="360*" />
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="200" />
+      <ColumnDefinition Width="126*" />
+      <ColumnDefinition Width="300" />
+    </Grid.ColumnDefinitions>
+    <GroupBox Name="groupBox_mortorHwParam" Grid.Row="0" Grid.Column="0" Header="Motor&amp;Hardware" Margin="0,4,0,0" Background="#D5DFE5">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="85*" />
+          <ColumnDefinition Width="110*" />
+        </Grid.ColumnDefinitions>
+        <Label Name="label_JiDuiShu" FontSize="12" Margin="2,5,0,0">Pole-Pairs</Label>
+        <Label Name="label_DianZu" Grid.Row="1" FontSize="12" Margin="2,5,0,0">Rs(Ω)</Label>
+        <Label Name="label_DianGan" Grid.Row="2" FontSize="12" Margin="2,5,0,0">Ls(H)</Label>
+        <Label Name="label_FanDianDongShi" Grid.Row="3" FontSize="12" Margin="2,5,0,0">Ke</Label>
+        <Label Name="label_CaiYandDianZu" Grid.Row="4" FontSize="12" Margin="2,5,0,0">Rsample(Ω)</Label>
+        <Label Name="label_FanDaBeiShu" Grid.Row="5" FontSize="12" Margin="2,5,0,0">Amp</Label>
+        <TextBox Name="textBox_JiDuiShu" Grid.Row="0" Grid.Column="1" Margin="4,5,5,2" MaxLength="2" ToolTip="range:1-20 integer" />
+        <TextBox Name="textBox_DianZu" Grid.Row="1" Grid.Column="1" Margin="4,5,5,2" ToolTip="range:0.000-200.0 float" MaxLength="9" />
+        <TextBox Name="textBox_DianGan" Grid.Row="2" Grid.Column="1" Margin="4,5,5,2" ToolTip="range:0.000000-1.000000 float" MaxLength="9" />
+        <TextBox Name="textBox_FanDianDongShi" Grid.Row="3" Grid.Column="1" Margin="4,5,5,2" ToolTip="range:0.0000-100.0000 float" MaxLength="11" />
+        <TextBox Name="textBox_CaiYandDianZu" Grid.Row="4" Grid.Column="1" Margin="4,5,5,2" ToolTip="range:0.001-2.000 float" MaxLength="5" />
+        <ComboBox Name="comboBox_FanDaBeiShu" Grid.Row="5" Grid.Column="1" Margin="4,4,5,3" />
+      </Grid>
+    </GroupBox>
+    <GroupBox Name="groupBox_FOCParamerters" Grid.Row="0" Grid.Column="1" Header="FOC &amp; RSD &amp; FG" Margin="0,4,0,0">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="28*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="28*" />
+          <RowDefinition Height="28*" />
+          <RowDefinition Height="24*" />
+          <RowDefinition Height="25*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="40*" />
+          <ColumnDefinition Width="100*" />
+        </Grid.ColumnDefinitions>
+        <Label Grid.Row="0" Grid.Column="0">ATOBW</Label>
+        <TextBox Name="textBox_AtoBw" Grid.Row="0" Grid.Column="1" Margin="5,2,0,2" ToolTip="range:0-200 integer" MaxLength="3" HorizontalAlignment="Left" Width="80" />
+        <Label Name="label10" Grid.Row="1" Grid.Column="0">BaseFreq</Label>
+        <Slider Name="slider_BaseFreq" Grid.Row="1" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="0,5,52,2" IsMoveToPointEnabled="True" />
+        <TextBlock Name="txtBlock_BaseFreq" Grid.Row="1" Grid.Column="1" Margin="0,0,22,0" VerticalAlignment="Center" HorizontalAlignment="Right" Text="{Binding ElementName=slider_BaseFreq, Path=Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+        <Label Name="label_BaseFreq" Grid.Row="1" Grid.Column="1" Margin="0,3,0,0" HorizontalAlignment="Right" Width="24">Hz</Label>
+        <Label Name="label12" Grid.Row="2" Grid.Column="0">SPD__BW</Label>
+        <Slider Name="slider_SPDBw" Grid.Row="2" Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="0,5,40,2" IsMoveToPointEnabled="True" />
+        <TextBlock Name="txtBlock_SpdBw" Grid.Row="2" Grid.Column="1" Margin="0,4.518,28,4.518" HorizontalAlignment="Right" Width="7.408" Text="{Binding ElementName=slider_SPDBw, Path=Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+        <Label Name="label80" Grid.Row="3" Grid.Column="0">RSDMode</Label>
+        <ComboBox Name="comboBox_RSDMode" Grid.Row="3" Grid.Column="1" Margin="5,2,0,2" Width="100" HorizontalAlignment="Left" />
+        <Label Name="label82" Grid.Row="4" Grid.Column="0">StaticSpeed</Label>
+        <Slider Name="slider_StaticSpeed" Grid.Row="4" Grid.Column="1" Margin="0,4,35,3" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" />
+        <TextBlock Name="textBlock_StaticSpeed" Grid.Row="4" Grid.Column="1" Margin="0,4,1,1" HorizontalAlignment="Right" Width="32" />
+        <Label Grid.Row="5" Grid.Column="0">FGDIV</Label>
+        <ComboBox Name="comboBox_FgDiv" Grid.Row="5" Grid.Column="1" Margin="5,2,0,2" Width="100" HorizontalAlignment="Left" />
+        <Label Grid.Row="6" Grid.Column="0">FGMUL</Label>
+        <ComboBox Name="comboBox_FgMul" Grid.Row="6" Grid.Column="1" Margin="5,0,0,2" Width="100" HorizontalAlignment="Left" />
+        <Label Grid.Row="7" Grid.Column="0">SpdCtrlMode</Label>
+        <ComboBox Name="comboBox_SpdCtrlMD" Grid.Row="7" Grid.Column="1" Margin="5,0,0,2" Width="100" HorizontalAlignment="Left" />
+      </Grid>
+    </GroupBox>
+    <GroupBox Name="groupBox_ProtectConfig" Grid.Row="0" Grid.Column="2" Header="Protection" Margin="0,4,0,0">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="1*" />
+          <ColumnDefinition Width="2.0*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="28*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="28*" />
+          <RowDefinition Height="28*" />
+          <RowDefinition Height="24*" />
+          <RowDefinition Height="25*" />
+          <RowDefinition Height="25*" />
+        </Grid.RowDefinitions>
+        <Label Grid.Row="0" Grid.Column="0">FaultRecTimes</Label>
+        <ComboBox Name="comboBox_FaultRestoreTimes" Grid.Row="0" Grid.Column="1" Width="80" Margin="0,2,0,2" HorizontalAlignment="Left" />
+        <Label Grid.Row="1" Grid.Column="0">Lock0</Label>
+        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+          <RadioButton Name="radioBtn_Lock0Dis" Width="75" VerticalAlignment="Center">Disable</RadioButton>
+          <RadioButton Name="radioBtn_Lock0En" VerticalAlignment="Center">Enable</RadioButton>
+        </StackPanel>
+        <Label Grid.Row="2" Grid.Column="0">Lock1</Label>
+        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+          <RadioButton Name="radioBtn_Lock1Dis" Width="75" VerticalAlignment="Center">Disable</RadioButton>
+          <RadioButton Name="radioBtn_Lock1En" VerticalAlignment="Center">Enable</RadioButton>
+        </StackPanel>
+        <Label Grid.Row="3" Grid.Column="0">Lock2</Label>
+        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
+          <RadioButton Name="radioBtn_Lock2Dis" Width="75" VerticalAlignment="Center">Disable</RadioButton>
+          <RadioButton Name="radioBtn_Lock2En" VerticalAlignment="Center">Enable</RadioButton>
+        </StackPanel>
+        <Label Grid.Row="4" Grid.Column="0">LockMinSpeed</Label>
+        <TextBox Name="textBox_LockMinSpeed" Grid.Row="4" Grid.Column="1" Margin="0,2,0,5" Width="80" ToolTip="less than 1/4 speed base" MaxLength="6" HorizontalAlignment="Left" />
+        <Label Grid.Row="5" Grid.Column="0">LockMaxSpeed</Label>
+        <TextBox Name="textBox_LockMaxSpeed" Grid.Row="5" Grid.Column="1" Margin="0,2,0,5" Width="80" ToolTip="more than 1/2 speed base" MaxLength="6" HorizontalAlignment="Left" />
+        <Label Grid.Row="6" Grid.Column="0">LockEmf</Label>
+        <Slider Name="slider_LockEmf" Grid.Row="6" Grid.Column="1" Width="160" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" HorizontalAlignment="Left" />
+        <TextBox Name="TextBox_LockEmf" Grid.Row="6" Grid.Column="1" Width="30" IsReadOnly="True" HorizontalAlignment="Right" Text="{Binding ElementName=slider_LockEmf, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Label Grid.Row="7" Grid.Column="0">Ocp__Dis</Label>
+        <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal">
+          <RadioButton Name="radioBtn_OcpDis0" Width="75" VerticalAlignment="Center">Disable</RadioButton>
+          <RadioButton Name="radioBtn_OcpDis1" VerticalAlignment="Center">Enable</RadioButton>
+        </StackPanel>
+        <Label Grid.Row="8" Grid.Column="0">ocp__da</Label>
+        <StackPanel Grid.Row="8" Grid.Column="1" Orientation="Horizontal">
+          <TextBox Name="textBox_OcpDa" Width="80" HorizontalAlignment="Left" ToolTip="range:0-255 integer" PreviewKeyUp="textBox_OcpDa_PreviewKeyUp" LostFocus="textBox_OcpDa_LostFocus" />
+          <TextBlock Name="textBlock_OcpDa_Voltage" Text="voltage: 0 v" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="11" />
+        </StackPanel>
+      </Grid>
+    </GroupBox>
+    <GroupBox Name="groupBox_StartConfig" Grid.Row="1" Grid.Column="0" Header="Startup" Margin="0,0,180,4" Grid.ColumnSpan="2">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="87" />
+          <ColumnDefinition Width="196" />
+          <ColumnDefinition Width="42*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="27*" />
+          <RowDefinition Height="30*" />
+          <RowDefinition Height="27*" />
+        </Grid.RowDefinitions>
+        <Label Name="label24" Grid.Column="0" Margin="1,0,0,0">ControlMode</Label>
+        <Label Name="label25" Grid.Row="1" Grid.Column="0" Margin="1,0,0,0">StartCurrent</Label>
+        <Label Name="label26" Grid.Row="2" Grid.Column="0" Margin="1,0,0,0">EFREQAcc</Label>
+        <Label Name="label27" Grid.Row="3" Grid.Column="0" Margin="1,0,0,0">EFREQMin</Label>
+        <Label Name="label28" Grid.Row="4" Grid.Column="0" Margin="1,0,0,0">CloSpeed</Label>
+        <Label Name="label29" Grid.Row="5" Grid.Column="0" Margin="1,0,0,0">EFREQHold</Label>
+        <Label Name="label_StartDuty30" Grid.Row="1" Grid.Column="0" Margin="1,0,0,0" Visibility="Hidden">StartDuty</Label>
+        <ComboBox Name="comboBox_ContrlMode" Grid.Column="1" Margin="6,3,95,3" />
+        <TextBox Name="textBox_StartCurrent" Grid.Column="1" Grid.Row="1" Margin="6,4,95,1" ToolTip="range:0.001-20.000 float" MaxLength="6" />
+        <TextBox Name="textBox_StartDuty30" Grid.Column="1" Grid.Row="1" Margin="6,4,95,1" ToolTip="range:1-50 int" Text="0" MaxLength="6" Visibility="Hidden" />
+        <Label Name="label_StartDutyUnit" Grid.Column="1" Grid.Row="1" Grid.ColumnSpan="2" Margin="100,2,0,0" Visibility="Hidden">% (range:0~50)</Label>
+        <Slider Name="slider_EFreQAcc" Grid.Column="1" Grid.Row="2" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Margin="1,1,0,4" IsMoveToPointEnabled="True" />
+        <TextBlock Name="textBlock_EFreQAcc" Grid.Column="2" Grid.Row="2" Margin="4,3,3,3" Text="{Binding ElementName=slider_EFreQAcc, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Slider Name="slider_EFreQMin" Grid.Column="1" Grid.Row="3" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Margin="1,1,0,4" IsMoveToPointEnabled="True" />
+        <TextBlock Name="textBlock_EFreQMin" Grid.Column="2" Grid.Row="3" Margin="3,3,0,5" HorizontalAlignment="Left" Width="23" Text="{Binding ElementName=slider_EFreQMin, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">2.6</TextBlock>
+        <Label Name="label32" Grid.Column="2" Grid.Row="2" Margin="0,26,8,5" Grid.RowSpan="2" HorizontalAlignment="Right" Width="19.949">%</Label>
+        <StackPanel Orientation="Horizontal" Grid.Column="1" Grid.Row="4" Grid.ColumnSpan="2">
+          <RadioButton Name="radioButton_CloSpeed_0x" HorizontalAlignment="Left" Width="60" VerticalAlignment="Center">0.5x</RadioButton>
+          <RadioButton Name="radioButton_CloSpeed_1x" HorizontalAlignment="Left" Width="60" VerticalAlignment="Center">1x</RadioButton>
+          <RadioButton Name="radioButton_CloSpeed_2x" HorizontalAlignment="Left" Width="60" VerticalAlignment="Center">2x</RadioButton>
+          <RadioButton Name="radioButton_CloSpeed_4x" HorizontalAlignment="Left" Width="60" VerticalAlignment="Center">4x</RadioButton>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Grid.Column="1" Grid.Row="5" Grid.ColumnSpan="2">
+          <RadioButton Name="radioButton_EFreQHold_1x" HorizontalAlignment="Left" Width="60" VerticalAlignment="Center">1x</RadioButton>
+          <RadioButton Name="radioButton_EFreQHold_2x" HorizontalAlignment="Left" Width="60" VerticalAlignment="Center">2x</RadioButton>
+          <RadioButton Name="radioButton_EFreQHold_4x" HorizontalAlignment="Right" Width="60" VerticalAlignment="Center">4x</RadioButton>
+          <RadioButton Name="radioButton_EFreQHold_8x" HorizontalAlignment="Left" Width="60" VerticalAlignment="Center">8x</RadioButton>
+        </StackPanel>
+      </Grid>
+    </GroupBox>
+    <GroupBox Name="groupBox_RunConfig" Grid.Row="1" Grid.Column="1" Header="Run" Margin="140,0,0,4" Grid.ColumnSpan="2">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="70" />
+          <ColumnDefinition Width="100" />
+          <ColumnDefinition Width="70" />
+          <ColumnDefinition Width="126.876" />
+          <ColumnDefinition Width="152.796*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="12*" />
+          <RowDefinition Height="12*" />
+          <RowDefinition Height="12*" />
+          <RowDefinition Height="12*" />
+          <RowDefinition Height="12*" />
+        </Grid.RowDefinitions>
+        <Label Name="label33" Grid.Column="0" Margin="1,0,0,0">DQ__KP</Label>
+        <Label Name="label34" Grid.Row="1" Grid.Column="0" Margin="1,0,0,0">DQ__KI</Label>
+        <Label Name="label35" Grid.Row="2" Grid.Column="0" Margin="1,0,0,0">WKP</Label>
+        <Label Name="label36" Grid.Row="3" Grid.Column="0" Margin="1,0,0,0">WKI</Label>
+        <Label Name="label37" Grid.Row="4" Grid.Column="0" Margin="1,0,0,0">WOutMax</Label>
+        <Label Name="label39" Grid.Row="0" Grid.Column="2" Margin="1,0,0,0">Stb__Inc</Label>
+        <Label Name="label40" Grid.Row="1" Grid.Column="2" Margin="1,0,0,0">Sta__Inc</Label>
+        <TextBox Name="textBox_DQKp" Grid.Column="1" Grid.Row="0" Margin="6,4,10,5" ToolTip="range:0-4.0 float" MaxLength="7" />
+        <TextBox Name="textBox_DQKi" Grid.Column="1" Grid.Row="1" Margin="6,4,10,5" ToolTip="range:0-0.500 float" MaxLength="7" />
+        <TextBox Name="textBox_WKp" Grid.Column="1" Grid.Row="2" Margin="6,4,10,5" ToolTip="range:0-4.0 float" MaxLength="7" />
+        <TextBox Name="textBox_WKi" Grid.Column="1" Grid.Row="3" Margin="6,4,10,5" ToolTip="range:0-0.500 float" MaxLength="7" />
+        <Slider Name="slider_WOutMax" Grid.Column="1" Grid.ColumnSpan="3" Grid.Row="4" Margin="4,2,3,9" IsSnapToTickEnabled="True" TickPlacement="BottomRight" IsMoveToPointEnabled="True" />
+        <Slider Name="slider_StbInc" Grid.Column="3" Grid.ColumnSpan="2" Grid.Row="0" Margin="2,5,30,6" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" />
+        <Slider Name="slider_StaInc" Grid.Column="3" Grid.ColumnSpan="2" Grid.Row="1" Margin="2,5,30,6" TickPlacement="BottomRight" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True" />
+        <TextBlock Name="textBlock_StbInc" Grid.Column="4" Grid.Row="0" Margin="0,5,2,1" HorizontalAlignment="Right" Width="25" Text="{Binding ElementName=slider_StbInc, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">31</TextBlock>
+        <TextBlock Name="textBlock_StaInc" Grid.Column="4" Grid.Row="1" Margin="0,6,2,1" HorizontalAlignment="Right" Width="25" Text="{Binding ElementName=slider_StaInc, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">31</TextBlock>
+        <TextBox Name="textBox_WOutMax" Grid.Column="4" Grid.Row="4" Margin="3,4,0,6" HorizontalAlignment="Left" Width="31.104" ToolTip="range:0-63 integer" MaxLength="2" Text="{Binding ElementName=slider_WOutMax, Path=Value, UpdateSourceTrigger=PropertyChanged}" />
+        <Label Name="label42" Grid.Column="4" Grid.Row="4" Margin="0,2,0,3" HorizontalAlignment="Right" Width="20">%</Label>
+        <TextBlock Name="textBlock_WOutMax" Grid.Column="4" Grid.Row="4" Margin="41,8,17,10">0.000</TextBlock>
+        <Label Grid.Row="2" Grid.Column="2" Margin="0,5,0,0">Dir__Inv</Label>
+        <StackPanel Grid.Row="2" Grid.Column="3" Orientation="Horizontal">
+          <RadioButton Name="radioBtn_DirInv0" Width="65" VerticalAlignment="Center">Disable</RadioButton>
+          <RadioButton Name="radioBtn_DirInv1" VerticalAlignment="Center">Enable</RadioButton>
+        </StackPanel>
+        <Button Name="btn_Advanced" Grid.Row="3" Grid.Column="4" Width="80" Height="28" Click="btn_Advanced_Click">Advanced</Button>
+      </Grid>
+    </GroupBox>
+  </Grid>
+</UserControl>
