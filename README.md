@@ -4,6 +4,14 @@ Bare-metal Rust firmware for **STM32F103C6T6** (Blue Pill) that probes an **FT81
 
 This is a small probe / experiment repo — the binary is a demo, not a finished product.
 
+## Warning
+
+**Do not run MTP erase or program commands on a chip you cannot replace.** `mtp erase`, `mtp write`, and `lab run --erase` clock an internal programming voltage inside the FT8132. That can erase stored config, and it can leave the SDA pin stuck low.
+
+On the bench part, SDA stayed low after program clocks were sent once Find had already gone bad. Power-cycling did not release it. Chip id then reads `0x00` and `bflash` stays all zeros, so the chip no longer answers. Details: [docs/cflash.md](docs/cflash.md).
+
+Stop if Find is not healthy (`chip id 0x02`, `bflash` starting `ffff00ff`). The firmware refuses a program clock in that case. A knock between erase and program acknowledges `F6` and does not store the bits. The frame at bit 384 erases c2 that was stored earlier in the same erase.
+
 ## Requirements
 
 - STM32F103C6T6 Blue Pill (or a C8; see [Memory](#memory))
