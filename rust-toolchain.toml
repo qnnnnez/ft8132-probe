@@ -1,2 +1,4 @@
 [toolchain]
-channel = "esp"
+channel = "1.99.0"
+profile = "minimal"
+targets = ["thumbv7m-none-eabi"]

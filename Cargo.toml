@@ -1,51 +1,40 @@
 [package]
 edition      = "2024"
 name         = "ft8132-probe"
-rust-version = "1.88"
+rust-version = "1.99"
 version      = "0.1.0"
+autobins     = false
 
 [[bin]]
 name = "ft8132-probe"
-path = "./src/bin/main.rs"
+path = "src/bin/usbdisk2.rs"
 
 [dependencies]
-esp-hal = { version = "~1.0", features = ["esp32s3", "log-04", "unstable"] }
-
-esp-rtos = { version = "0.2.0", features = [
-  "embassy",
-  "esp-alloc",
-  "esp32s3",
-  "log-04",
+embassy-stm32 = { version = "0.6.0", features = [
+  "stm32f103c6",
+  "time",
+  "time-driver-tim2",
+  "unstable-pac",
 ] }
-
-esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3", "log-04"] }
-log                    = "0.4.27"
-
-embassy-executor = { version = "0.9.1", features = ["log"] }
-embassy-time = { version = "0.5.0", features = ["log"] }
-esp-alloc = "0.9.0"
-esp-backtrace = { version = "0.18.1", features = [
-  "esp32s3",
-  "panic-handler",
-  "println",
+embassy-executor = { version = "0.10.0", features = [
+  "platform-cortex-m",
+  "executor-thread",
 ] }
-esp-println = { version = "0.16.1", features = ["esp32s3", "log-04"] }
+embassy-time = { version = "0.5.1", features = ["tick-hz-32_768"] }
+embassy-sync = "0.8.0"
 
-critical-section = "1.2.0"
-static_cell      = "2.1.1"
-heapless = "0.9.2"
-usb-device = { version = "0.3.2", features = ["log"] }
-usbd-serial = "0.2.2"
-embassy-usb = {version = "0.5.1", features = ["log"]}
-embedded-io-async = "0.6.1"
-esp-storage = { version = "0.8.1", features = ["esp32s3"] }
-embedded-storage = "0.3.1"
-embassy-sync = { version = "0.7.2", features = ["log"]}
-usbd-storage = { path = "vendor/usbd-storage", features = ["bbb", "scsi"] }
+cortex-m = { version = "0.7.9", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7.7"
+panic-halt = "1.0.0"
+static_cell = "2.1.1"
+
+usb-device = "0.3.2"
+stm32-usbd = { path = "vendor/stm32-usbd" }
+usbd-storage = { path = "vendor/usbd-storage/usbd-storage", features = ["bbb", "scsi"] }
 
 [features]
 default = []
-# In-firmware capture-seeded ASIC; no GPIO48/GPIO4 / I2C0 wiring required.
+# In-firmware capture-seeded ASIC; no PB7/PB6 / I2C1 wiring required.
 mock-asic = []
 
 [profile.dev]
@@ -58,6 +47,6 @@ codegen-units    = 1     # LLVM can perform better optimizations using a single 
 debug            = 2
 debug-assertions = false
 incremental      = false
-lto              = 'fat'
-opt-level        = 's'
+lto              = "fat"
+opt-level        = "s"
 overflow-checks  = false

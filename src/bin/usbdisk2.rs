@@ -1,20 +1,21 @@
 #![no_std]
 #![no_main]
 
+use core::cell::UnsafeCell;
+
 use embassy_executor::Spawner;
+use embassy_stm32::gpio::{Flex, Pull, Speed};
+use embassy_stm32::interrupt::{self, InterruptExt};
+use embassy_stm32::time::Hertz;
+use embassy_stm32::Config;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
-use embassy_time::{Duration, Timer};
-use esp_backtrace as _;
-use esp_hal::{
-    interrupt::{self, Priority},
-    otg_fs::{Usb, UsbBus},
-    peripherals::Interrupt,
-    timer::timg::TimerGroup,
-};
+use embassy_time::{Duration, Instant, Timer};
 use ft8132_probe::asic::{self, AsicBus};
-use log::{info, warn};
+use ft8132_probe::usb_hw::{ProbeUsbBus, UsbHw};
+use panic_halt as _;
 use static_cell::StaticCell;
+use stm32_usbd::UsbBus;
 use usb_device::bus::UsbBusAllocator;
 use usb_device::prelude::{UsbDevice, UsbDeviceBuilder, UsbVidPid};
 use usbd_storage::subclass::scsi::{Scsi, ScsiCommand};
@@ -25,17 +26,23 @@ use ft8132_probe::mock_asic::MockAsic;
 #[cfg(not(feature = "mock-asic"))]
 use ft8132_probe::ft8132::FT8132;
 
-esp_bootloader_esp_idf::esp_app_desc!();
+// Size-sensitive: keep format strings out of flash.
+macro_rules! info {
+    ($($t:tt)*) => {{}};
+}
+macro_rules! warn {
+    ($($t:tt)*) => {{}};
+}
 
 static USB_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
-type UsbBusType = UsbBus<Usb<'static>>;
+type UsbBusType = ProbeUsbBus;
 type ScsiDev = Scsi<usbd_storage::transport::bbb::BulkOnly<'static, UsbBusType, IoBuf>>;
 
 #[cfg(feature = "mock-asic")]
 type AsicDev = MockAsic;
 #[cfg(not(feature = "mock-asic"))]
-type AsicDev = FT8132<'static, esp_hal::peripherals::I2C0<'static>>;
+type AsicDev = FT8132;
 
 // Sense keys
 const SENSE_KEY_NO_SENSE: u8 = 0x00;
@@ -57,6 +64,16 @@ const INQ_MAGIC: [u8; 8] = *b"GP-PROD.";
 // SCSI VPD unit serial number (ASCII)
 const UNIT_SERIAL: &[u8] = b"12345678";
 
+/// 1024-byte 0/1 MTP image for `FE 10` / `FE 20`. Programming reads this
+/// buffer only, so a dialect has no USB gap inside it.
+struct LabImage(UnsafeCell<[u8; asic::MTP_BITS]>);
+unsafe impl Sync for LabImage {}
+static LAB_IMAGE: LabImage = LabImage(UnsafeCell::new([0; asic::MTP_BITS]));
+
+fn lab_image() -> &'static mut [u8] {
+    unsafe { &mut *LAB_IMAGE.0.get() }
+}
+
 struct IoBuf(&'static mut [u8]);
 
 impl core::borrow::Borrow<[u8]> for IoBuf {
@@ -71,22 +88,114 @@ impl core::borrow::BorrowMut<[u8]> for IoBuf {
     }
 }
 
-#[esp_hal::handler(priority = Priority::Priority2)]
-fn usb_interrupt_handler() {
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn USB_LP_CAN1_RX0() {
     USB_SIGNAL.signal(());
-    let _ = interrupt::disable(esp_hal::system::Cpu::ProCpu, Interrupt::USB);
-    let _ = interrupt::disable(esp_hal::system::Cpu::AppCpu, Interrupt::USB);
+    interrupt::USB_LP_CAN1_RX0.disable();
 }
 
-fn cdb_reg_len(raw: &[u8; 16]) -> (u8, usize, u8, u8) {
+fn usb_irq_enable() {
+    interrupt::USB_LP_CAN1_RX0.unpend();
+    unsafe { interrupt::USB_LP_CAN1_RX0.enable() };
+}
+
+fn cdb_reg_len(raw: &[u8; 16]) -> (u16, usize, u8, u8) {
     let acc = raw[6];
     let opt = raw[9];
-    let addr = raw[5];
+    let addr = u16::from_be_bytes([raw[4], raw[5]]);
     let mut len = u16::from_be_bytes([raw[7], raw[8]]) as usize;
     if len == 0 {
         len = 1;
     }
     (addr, len.min(512), acc, opt)
+}
+
+fn is_find_bflash(acc: u8, opt: u8, addr: u16, len: usize) -> bool {
+    acc == 5 && opt == 5 && addr == 0 && len == asic::BFLASH_LEN
+}
+
+fn is_mtp_read(acc: u8, opt: u8) -> bool {
+    acc == 5 && matches!(opt, 5 | 6)
+}
+
+fn is_mtp_write(acc: u8, opt: u8) -> bool {
+    acc == 5 && matches!(opt, 5 | 6 | 133)
+}
+
+/// Stashed bk/c1 CDBs; programmed with c2 as one I2C session (no USB hole).
+struct MtpStash {
+    bk: [u8; asic::BMTP_BITS],
+    c1: [u8; asic::CMTP_HALF],
+    c2: [u8; asic::CMTP_HALF],
+}
+
+impl MtpStash {
+    const fn new() -> Self {
+        Self {
+            bk: [0; asic::BMTP_BITS],
+            c1: [0; asic::CMTP_HALF],
+            c2: [0; asic::CMTP_HALF],
+        }
+    }
+}
+
+struct VendorOut {
+    active: bool,
+    addr: u16,
+    /// Bytes to drain from the BOT OUT phase (`dCBWDataTransferLength`).
+    need: usize,
+    /// CDB length: bits/bytes actually programmed after the drain.
+    payload: usize,
+    acc: u8,
+    opt: u8,
+    got: usize,
+    buf: [u8; 512],
+    stash: MtpStash,
+}
+
+impl VendorOut {
+    const fn new() -> Self {
+        Self {
+            active: false,
+            addr: 0,
+            need: 0,
+            payload: 0,
+            acc: 0,
+            opt: 0,
+            got: 0,
+            buf: [0; 512],
+            stash: MtpStash::new(),
+        }
+    }
+
+    fn reset(&mut self) {
+        self.active = false;
+        self.got = 0;
+        self.payload = 0;
+    }
+}
+
+/// `FD 20` HV waits spanned across `poll_command` so USB SOF keeps moving.
+#[derive(Clone, Copy)]
+enum MtpErase {
+    Idle,
+    Wait1 { deadline: Instant },
+    Wait2 { deadline: Instant },
+}
+
+impl MtpErase {
+    const fn new() -> Self {
+        Self::Idle
+    }
+}
+
+fn hv_deadline_us(us: u32) -> Instant {
+    Instant::now() + Duration::from_micros(us as u64)
+}
+
+fn hv_expired(deadline: Instant) -> bool {
+    Instant::now() >= deadline
 }
 
 fn fail_illegal(cmd: Command<'_, ScsiCommand, ScsiDev>, current_sense: &mut (u8, u8, u8)) {
@@ -95,18 +204,115 @@ fn fail_illegal(cmd: Command<'_, ScsiCommand, ScsiDev>, current_sense: &mut (u8,
         ASC_INVALID_COMMAND_OP_CODE,
         ASCQ_INVALID_COMMAND_OP_CODE,
     );
-    cmd.fail();
+    cmd.fail(0);
+}
+
+fn stash_copy(dst: &mut [u8], src: &[u8]) {
+    let n = src.len().min(dst.len());
+    for i in 0..n {
+        dst[i] = src[i];
+    }
+    dst[n..].fill(0);
+}
+
+fn handle_mtp_write<B: AsicBus>(
+    asic: &mut B,
+    cmd: Command<'_, ScsiCommand, ScsiDev>,
+    current_sense: &mut (u8, u8, u8),
+    out: &mut VendorOut,
+    addr: u16,
+    n: usize,
+    processed: u32,
+) {
+    match addr {
+        asic::BKMTP_OFF => {
+            stash_copy(&mut out.stash.bk, &out.buf[..n.min(asic::BMTP_BITS)]);
+            out.reset();
+            cmd.pass(processed);
+        }
+        asic::CMTP_OFF => {
+            stash_copy(&mut out.stash.c1, &out.buf[..n.min(asic::CMTP_HALF)]);
+            out.reset();
+            cmd.pass(processed);
+        }
+        502 => {
+            stash_copy(&mut out.stash.c2, &out.buf[..n.min(asic::CMTP_HALF)]);
+            let res = asic::mtp_program_image(asic, &out.stash.bk, &out.stash.c1, &out.stash.c2);
+            out.reset();
+            match res {
+                Ok(()) => cmd.pass(processed),
+                Err(_e) => {
+                    warn!("mtp program image failed: {_e:?}");
+                    fail_illegal(cmd, current_sense);
+                }
+            }
+        }
+        _ => {
+            out.reset();
+            fail_illegal(cmd, current_sense);
+        }
+    }
+}
+
+fn handle_lab_load(
+    mut cmd: Command<'_, ScsiCommand, ScsiDev>,
+    current_sense: &mut (u8, u8, u8),
+    out: &mut VendorOut,
+) {
+    let raw = cmd.cdb;
+    let offset = u16::from_be_bytes([raw[4], raw[5]]) as usize;
+    let len = u16::from_be_bytes([raw[7], raw[8]]) as usize;
+    if len == 0 || len > out.buf.len() || offset.saturating_add(len) > asic::MTP_BITS {
+        out.reset();
+        fail_illegal(cmd, current_sense);
+        return;
+    }
+    if !out.active || out.addr as usize != offset || out.need != len {
+        out.active = true;
+        out.addr = offset as u16;
+        out.need = len;
+        out.payload = len;
+        out.acc = 0;
+        out.opt = 0;
+        out.got = 0;
+    }
+    if cmd.is_data_out() && cmd.data_transfer_len() > 0 && out.got < out.need {
+        let n = cmd.read_data(&mut out.buf[out.got..out.need]).unwrap_or(0);
+        out.got = out.got.saturating_add(n);
+    }
+    if out.got < out.need && cmd.is_data_out() && cmd.data_transfer_len() > 0 {
+        return;
+    }
+    if out.got < len {
+        out.reset();
+        fail_illegal(cmd, current_sense);
+        return;
+    }
+    lab_image()[offset..offset + len].copy_from_slice(&out.buf[..len]);
+    let processed = out.got as u32;
+    out.reset();
+    cmd.pass(processed);
 }
 
 fn handle_vendor<B: AsicBus>(
     asic: &mut B,
     mut cmd: Command<'_, ScsiCommand, ScsiDev>,
     current_sense: &mut (u8, u8, u8),
+    out: &mut VendorOut,
+    erase: &mut MtpErase,
 ) {
+    asic::hv_on_command();
     let raw = cmd.cdb;
     let op = raw[0];
     let sub = raw[1];
     let data_in = cmd.is_data_in();
+
+    if !matches!((op, sub), (0xFD, 0x2A) | (0xFE, 0x10)) {
+        out.reset();
+    }
+    if (op, sub) != (0xFD, 0x20) {
+        *erase = MtpErase::Idle;
+    }
 
     match (op, sub) {
         (0xF0, 0xF0) => {
@@ -118,83 +324,166 @@ fn handle_vendor<B: AsicBus>(
                 ^ 0x4750;
             info!("auth code: {c:#06x}");
             let resp = c.to_be_bytes();
-            let _ = cmd.write_data(&resp);
-            cmd.pass();
+            let n = cmd.write_data(&resp).unwrap_or(0);
+            cmd.pass(n as u32);
         }
         (0xF0, 0xF8) => {
             warn!("stub vendor CDB F0 F8: {raw:02x?}");
-            let _ = cmd.write_data(&[0; 4]);
-            cmd.pass();
+            let n = cmd.write_data(&[0; 4]).unwrap_or(0);
+            cmd.pass(n as u32);
         }
         (0xF0, 0xF9) => {
             warn!("stub vendor CDB F0 F9: {raw:02x?}");
-            let _ = cmd.write_data(&[0; 20]);
-            cmd.pass();
+            let n = cmd.write_data(&[0; 20]).unwrap_or(0);
+            cmd.pass(n as u32);
         }
         (0xFD, 0x00) => {
             info!("pre-op / enter I2C (FD 00)");
+            asic::hv_on_knock();
             match asic.knock() {
-                Ok(()) => cmd.pass(),
-                Err(e) => {
-                    warn!("knock failed: {e:?}");
+                Ok(()) => cmd.pass(0),
+                Err(_e) => {
+                    warn!("knock failed: {_e:?}");
                     fail_illegal(cmd, current_sense);
                 }
             }
         }
         (0xFD, 0x20) => {
-            info!("flash start (FD 20)");
-            cmd.pass();
+            info!("chip erase (FD 20)");
+            match *erase {
+                MtpErase::Idle => match asic::hv_allow_erase(asic) {
+                    Ok(true) => match asic::mtp_erase_start(asic) {
+                        Ok(()) => {
+                            *erase = MtpErase::Wait1 {
+                                deadline: hv_deadline_us(asic::ERASE_PHASE1_US),
+                            };
+                        }
+                        Err(_e) => {
+                            warn!("mtp erase start failed: {_e:?}");
+                            fail_illegal(cmd, current_sense);
+                        }
+                    },
+                    Ok(false) => fail_illegal(cmd, current_sense),
+                    Err(_e) => {
+                        warn!("mtp erase health failed: {_e:?}");
+                        fail_illegal(cmd, current_sense);
+                    }
+                },
+                MtpErase::Wait1 { deadline } => {
+                    if !hv_expired(deadline) {
+                        return;
+                    }
+                    match asic::mtp_erase_phase2(asic) {
+                        Ok(()) => {
+                            *erase = MtpErase::Wait2 {
+                                deadline: hv_deadline_us(asic::ERASE_PHASE2_US),
+                            };
+                        }
+                        Err(_e) => {
+                            *erase = MtpErase::Idle;
+                            warn!("mtp erase phase2 failed: {_e:?}");
+                            fail_illegal(cmd, current_sense);
+                        }
+                    }
+                },
+                MtpErase::Wait2 { deadline } => {
+                    if !hv_expired(deadline) {
+                        return;
+                    }
+                    *erase = MtpErase::Idle;
+                    match asic::mtp_erase_finish(asic) {
+                        Ok(()) => {
+                            asic::hv_on_erase_done();
+                            cmd.pass(0);
+                        }
+                        Err(_e) => {
+                            warn!("mtp erase finish failed: {_e:?}");
+                            fail_illegal(cmd, current_sense);
+                        }
+                    }
+                }
+            }
         }
         (0xFD, 0x28) => {
             let (addr, len, acc, opt) = cdb_reg_len(&raw);
-            info!("reg read FD 28 addr={addr:#04x} len={len} acc={acc} opt={opt}");
+            info!("reg read FD 28 addr={addr:#06x} len={len} acc={acc} opt={opt}");
             let mut buf = [0u8; 512];
             let n = len;
-            let res = if addr == 0 && n == asic::BFLASH_LEN {
+            let res = if is_find_bflash(acc, opt, addr, n) {
                 asic::bflash_read(asic, &mut buf[..n])
+            } else if is_mtp_read(acc, opt) {
+                asic::mtp_read_bits(asic, addr, &mut buf[..n])
             } else {
-                asic::reg_read_n(asic, addr, &mut buf[..n])
+                asic::reg_read_n(asic, addr as u8, &mut buf[..n])
             };
             match res {
                 Ok(()) => {
-                    let _ = cmd.write_data(&buf[..n]);
-                    cmd.pass();
+                    if addr == 0x01 && n >= 1 {
+                        asic::hv_observe_id(buf[0]);
+                    }
+                    let written = cmd.write_data(&buf[..n]).unwrap_or(0);
+                    cmd.pass(written as u32);
                 }
-                Err(e) => {
-                    warn!("reg read failed: {e:?}");
+                Err(_e) => {
+                    warn!("reg read failed: {_e:?}");
                     fail_illegal(cmd, current_sense);
                 }
             }
         }
         (0xFD, 0x2A) => {
-            let (addr, len, acc, opt) = cdb_reg_len(&raw);
-            info!("reg write FD 2A addr={addr:#04x} len={len} acc={acc} opt={opt}");
-            let mut buf = [0u8; 512];
-            let n = len;
-            let got = if cmd.is_data_out() && cmd.data_transfer_len() > 0 {
-                cmd.read_data(&mut buf[..n]).unwrap_or(0)
-            } else {
-                0
-            };
-            if got == 0 && cmd.is_data_out() && cmd.data_transfer_len() > 0 {
-                // CBW processed before the OUT data packet; try again next poll.
+            let (addr, payload, acc, opt) = cdb_reg_len(&raw);
+            // Official wrapper pads MTP OUT to 512 even when CDB len is 110/374.
+            // Drain the full CBW length before programming so USBSTOR does not
+            // retry a short residue (seen as "Write bkflash Fail..." after 30s).
+            let xfer = (cmd.data_transfer_len() as usize).min(out.buf.len());
+            let drain = xfer.max(payload).min(out.buf.len());
+            info!("reg write FD 2A addr={addr:#06x} len={payload} acc={acc} opt={opt}");
+            if !out.active
+                || out.addr != addr
+                || out.need != drain
+                || out.payload != payload
+                || out.acc != acc
+                || out.opt != opt
+            {
+                out.active = true;
+                out.addr = addr;
+                out.need = drain;
+                out.payload = payload;
+                out.acc = acc;
+                out.opt = opt;
+                out.got = 0;
+            }
+            if cmd.is_data_out() && cmd.data_transfer_len() > 0 && out.got < out.need {
+                let n = cmd
+                    .read_data(&mut out.buf[out.got..out.need])
+                    .unwrap_or(0);
+                out.got = out.got.saturating_add(n);
+            }
+            if out.got < out.need && cmd.is_data_out() && cmd.data_transfer_len() > 0 {
+                // CBW processed before the OUT data packet; keep bytes and wait.
                 return;
             }
-            let payload = &buf[..got.min(n)];
-            let res = if asic::needs_handshake(addr) {
-                payload.iter().enumerate().try_fold((), |_, (i, &v)| {
-                    asic::write_reg_protected(asic, addr.wrapping_add(i as u8), v)
+            let n = out.payload.min(out.got);
+            let processed = out.got as u32;
+            if is_mtp_write(acc, opt) {
+                handle_mtp_write(asic, cmd, current_sense, out, addr, n, processed);
+                return;
+            }
+            let res = if asic::needs_handshake(addr as u8) {
+                out.buf[..n].iter().enumerate().try_fold((), |_, (i, &v)| {
+                    asic::write_reg_protected(asic, (addr as u8).wrapping_add(i as u8), v)
                 })
             } else {
                 let mut pkt = [0u8; 513];
-                pkt[0] = addr;
-                pkt[1..1 + payload.len()].copy_from_slice(payload);
-                asic.i2c_write(&pkt[..1 + payload.len()])
+                pkt[0] = addr as u8;
+                pkt[1..1 + n].copy_from_slice(&out.buf[..n]);
+                asic.i2c_write(&pkt[..1 + n])
             };
+            out.reset();
             match res {
-                Ok(()) => cmd.pass(),
-                Err(e) => {
-                    warn!("reg write failed: {e:?}");
+                Ok(()) => cmd.pass(processed),
+                Err(_e) => {
+                    warn!("reg write failed: {_e:?}");
                     fail_illegal(cmd, current_sense);
                 }
             }
@@ -204,22 +493,50 @@ fn handle_vendor<B: AsicBus>(
             match asic::scan_i2c(asic) {
                 Ok((id, st)) => {
                     info!("scan slave={id:#04x} status={st}");
-                    let _ = cmd.write_data(&[id, st]);
-                    cmd.pass();
+                    let n = cmd.write_data(&[id, st]).unwrap_or(0);
+                    cmd.pass(n as u32);
                 }
-                Err(e) => {
-                    warn!("scan failed: {e:?}");
-                    let _ = cmd.write_data(&[0, 1]);
-                    cmd.pass();
+                Err(_e) => {
+                    warn!("scan failed: {_e:?}");
+                    let n = cmd.write_data(&[0, 1]).unwrap_or(0);
+                    cmd.pass(n as u32);
+                }
+            }
+        }
+        (0xFE, 0x10) => handle_lab_load(cmd, current_sense, out),
+        (0xFE, 0x11) => {
+            let off = u16::from_be_bytes([raw[4], raw[5]]) as usize;
+            let len = u16::from_be_bytes([raw[7], raw[8]]) as usize;
+            let img = lab_image();
+            if len == 0 || len > 512 || off.saturating_add(len) > img.len() {
+                fail_illegal(cmd, current_sense);
+            } else {
+                let n = cmd.write_data(&img[off..off + len]).unwrap_or(0);
+                cmd.pass(n as u32);
+            }
+        }
+        (0xFE, 0x30) => match asic.clamp_bus(raw[2] != 0) {
+            Ok(()) => cmd.pass(0),
+            Err(_e) => fail_illegal(cmd, current_sense),
+        },
+        (0xFE, 0x20) => {
+            let dialect = raw[2];
+            let gap = u32::from(u16::from_be_bytes([raw[4], raw[5]]));
+            match asic::lab_program(asic, lab_image(), dialect, gap) {
+                Ok(true) => cmd.pass(0),
+                Ok(false) => fail_illegal(cmd, current_sense),
+                Err(_e) => {
+                    warn!("lab program failed: {_e:?}");
+                    fail_illegal(cmd, current_sense);
                 }
             }
         }
         (0xFF, 0xFF) => {
             info!("exit I2C (FF FF OUT)");
             match asic.exit_i2c() {
-                Ok(()) => cmd.pass(),
-                Err(e) => {
-                    warn!("exit I2C failed: {e:?}");
+                Ok(()) => cmd.pass(0),
+                Err(_e) => {
+                    warn!("exit I2C failed: {_e:?}");
                     fail_illegal(cmd, current_sense);
                 }
             }
@@ -231,8 +548,7 @@ fn handle_vendor<B: AsicBus>(
     }
 }
 
-#[embassy_executor::task]
-async fn usb_task(
+async fn run_usb(
     mut usb_dev: UsbDevice<'static, UsbBusType>,
     mut scsi: ScsiDev,
     mut asic: AsicDev,
@@ -241,16 +557,16 @@ async fn usb_task(
 
     // Current sense: (Key, ASC, ASCQ)
     let mut current_sense = (SENSE_KEY_NO_SENSE, 0x00, 0x00);
+    let mut vendor_out = VendorOut::new();
+    let mut mtp_erase = MtpErase::new();
 
     loop {
-        USB_SIGNAL.wait().await;
-        
         // Drain events
         loop {
             let processed = usb_dev.poll(&mut [&mut scsi]);
 
-            // Drive SCSI/BOT state machine. This is required in addition to usb_dev.poll().
-            let _ = scsi.poll(|mut cmd| {
+            // Handle the current SCSI command. UsbClass::poll (via usb_dev.poll) drives BBB.
+            let _ = scsi.poll_command(|mut cmd| {
                 match cmd.kind {
                     ScsiCommand::Inquiry {
                         evpd,
@@ -266,7 +582,7 @@ async fn usb_task(
                                     let vpd = [0x00, 0x00, 0x00, 0x03, 0x00, 0x80, 0x83];
                                     let max_len = core::cmp::min(alloc_len as usize, vpd.len());
                                     let _ = cmd.try_write_data_all(&vpd[..max_len]);
-                                    cmd.pass();
+                                    cmd.pass(max_len as u32);
                                 }
                                 0x80 => {
                                     // Unit Serial Number VPD
@@ -282,7 +598,7 @@ async fn usb_task(
                                     let total_len = 4 + UNIT_SERIAL.len();
                                     let max_len = core::cmp::min(alloc_len as usize, total_len);
                                     let _ = cmd.try_write_data_all(&vpd[..max_len]);
-                                    cmd.pass();
+                                    cmd.pass(max_len as u32);
                                 }
                                 0x83 => {
                                     // Device Identification VPD (minimal, one ASCII vendor-specific designator)
@@ -305,7 +621,7 @@ async fn usb_task(
                                     let total_len = 8 + UNIT_SERIAL.len();
                                     let max_len = core::cmp::min(alloc_len as usize, total_len);
                                     let _ = cmd.try_write_data_all(&vpd[..max_len]);
-                                    cmd.pass();
+                                    cmd.pass(max_len as u32);
                                 }
                                 _ => {
                                     current_sense = (
@@ -313,10 +629,10 @@ async fn usb_task(
                                         ASC_INVALID_COMMAND_OP_CODE,
                                         ASCQ_INVALID_COMMAND_OP_CODE,
                                     );
-                                    cmd.fail();
+                                    cmd.fail(0);
                                 }
                             }
-                            return;
+                            return Ok(());
                         }
 
                         // Standard inquiry data (36 bytes + 8 magic bytes)
@@ -343,7 +659,7 @@ async fn usb_task(
 
                         let max_len = core::cmp::min(alloc_len as usize, inquiry_data.len());
                         let _ = cmd.try_write_data_all(&inquiry_data[..max_len]);
-                        cmd.pass();
+                        cmd.pass(max_len as u32);
                     }
                     ScsiCommand::TestUnitReady => {
                         // Report "no media"
@@ -352,7 +668,7 @@ async fn usb_task(
                             ASC_MEDIUM_NOT_PRESENT,
                             ASCQ_MEDIUM_NOT_PRESENT,
                         );
-                        cmd.fail();
+                        cmd.fail(0);
                     }
                     ScsiCommand::RequestSense { alloc_len, .. } => {
                         // Fixed format sense data (18 bytes)
@@ -374,60 +690,60 @@ async fn usb_task(
 
                         let max_len = core::cmp::min(alloc_len as usize, sense_data.len());
                         let _ = cmd.try_write_data_all(&sense_data[..max_len]);
-                        cmd.pass();
+                        cmd.pass(max_len as u32);
                     }
                     ScsiCommand::ModeSense6 { alloc_len, .. } => {
                         // No media: return CHECK CONDITION (NOT READY / MEDIUM NOT PRESENT).
-                        //
-                        // Many OSes probe MODE SENSE early; when there is no backing medium we
-                        // want consistent behavior with TEST UNIT READY / READ CAPACITY, so the
-                        // host learns the 0x02/0x3A00 condition via REQUEST SENSE.
-                        let _ = alloc_len; // keep pattern consistent; no data phase on failure
+                        let _ = alloc_len;
                         current_sense = (
                             SENSE_KEY_NOT_READY,
                             ASC_MEDIUM_NOT_PRESENT,
                             ASCQ_MEDIUM_NOT_PRESENT,
                         );
-                        cmd.fail();
+                        cmd.fail(0);
                     }
                     ScsiCommand::ModeSense10 { alloc_len, .. } => {
-                        // No media: return CHECK CONDITION (NOT READY / MEDIUM NOT PRESENT).
-                        let _ = alloc_len; // keep pattern consistent; no data phase on failure
+                        let _ = alloc_len;
                         current_sense = (
                             SENSE_KEY_NOT_READY,
                             ASC_MEDIUM_NOT_PRESENT,
                             ASCQ_MEDIUM_NOT_PRESENT,
                         );
-                        cmd.fail();
+                        cmd.fail(0);
                     }
                     ScsiCommand::ReadCapacity10
                     | ScsiCommand::ReadCapacity16 { .. }
                     | ScsiCommand::Read { .. }
                     | ScsiCommand::Write { .. }
                     | ScsiCommand::ReadFormatCapacities { .. } => {
-                        // No media: fail all capacity/read/write style commands
                         current_sense = (
                             SENSE_KEY_NOT_READY,
                             ASC_MEDIUM_NOT_PRESENT,
                             ASCQ_MEDIUM_NOT_PRESENT,
                         );
-                        cmd.fail();
+                        cmd.fail(0);
                     }
                     ScsiCommand::Unknown { .. } => {
-                        handle_vendor(&mut asic, cmd, &mut current_sense);
+                        handle_vendor(
+                            &mut asic,
+                            cmd,
+                            &mut current_sense,
+                            &mut vendor_out,
+                            &mut mtp_erase,
+                        );
                     }
                     _ => {
-                        let raw = cmd.cdb_bytes();
-                        info!("Unknown command: {:?}", &raw[..raw.len() as usize]);
-                        // `ScsiCommand` is non_exhaustive; default to ILLEGAL REQUEST.
+                        let _raw = cmd.cdb_bytes();
+                        info!("Unknown command: {:?}", &_raw[.._raw.len() as usize]);
                         current_sense = (
                             SENSE_KEY_ILLEGAL_REQUEST,
                             ASC_INVALID_COMMAND_OP_CODE,
                             ASCQ_INVALID_COMMAND_OP_CODE,
                         );
-                        cmd.fail();
+                        cmd.fail(0);
                     }
                 }
+                Ok(())
             });
 
             if !processed {
@@ -435,66 +751,80 @@ async fn usb_task(
             }
         }
 
-        interrupt::enable(Interrupt::USB, usb_interrupt_handler.priority()).unwrap();
+        usb_irq_enable();
+        Timer::after_ticks(1).await;
     }
 }
 
-#[esp_rtos::main]
-async fn main(spawner: Spawner) -> ! {
-    esp_println::logger::init_logger_from_env();
-    let peripherals = esp_hal::init(esp_hal::Config::default());
+fn rcc_72mhz_usb() -> Config {
+    let mut config = Config::default();
+    {
+        use embassy_stm32::rcc::*;
+        config.rcc.hse = Some(Hse {
+            freq: Hertz(8_000_000),
+            mode: HseMode::Oscillator,
+        });
+        config.rcc.pll = Some(Pll {
+            src: PllSource::HSE,
+            prediv: PllPreDiv::DIV1,
+            mul: PllMul::MUL9,
+        });
+        config.rcc.sys = Sysclk::PLL1_P;
+        config.rcc.ahb_pre = AHBPrescaler::DIV1;
+        config.rcc.apb1_pre = APBPrescaler::DIV2;
+        config.rcc.apb2_pre = APBPrescaler::DIV1;
+    }
+    config
+}
 
-    esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 73744);
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
+    #[allow(unused_mut)]
+    let mut p = embassy_stm32::init(rcc_72mhz_usb());
 
-    let timg0 = TimerGroup::new(peripherals.TIMG0);
-    esp_rtos::start(timg0.timer0);
-
-    info!("Embassy initialized!");
+    // Pulse D+ low *before* USBEN so the host drops a previous failed enum.
+    // Then both USB pads must stay floating inputs: analog disconnects the
+    // F1 PHY, and Drop of Flex would analog them — so forget the pins.
+    let mut dp = Flex::new(p.PA12);
+    dp.set_low();
+    dp.set_as_input_output(Speed::Low);
+    Timer::after_millis(100).await;
+    dp.set_as_input(Pull::None);
+    let mut dm = Flex::new(p.PA11);
+    dm.set_as_input(Pull::None);
+    core::mem::forget(dp);
+    core::mem::forget(dm);
 
     #[cfg(feature = "mock-asic")]
     let asic = {
         info!("usbdisk2: mock ASIC (no FT8132 wiring)");
         let mut asic = MockAsic::from_fixtures();
-        match asic::enter_i2c(&mut asic) {
-            Ok(id) => {
-                let scan = asic::scan_i2c(&mut asic).ok();
-                let mut bflash = [0u8; asic::BFLASH_LEN];
-                let b111 = asic::bflash_read(&mut asic, &mut bflash)
-                    .ok()
-                    .map(|_| bflash[111]);
-                let mut status = [0u8; 44];
-                let st0 = asic::reg_read_n(&mut asic, 0x40, &mut status)
-                    .ok()
-                    .map(|_| status[0]);
-                let wr = asic::write_reg_protected(&mut asic, 0x86, 0x5A)
-                    .ok()
-                    .and_then(|_| asic::reg_read(&mut asic, 0x86).ok());
-                info!(
-                    "mock Find self-check: chip_id={id:#04x} (want {:#04x}) scan={scan:?} bflash[111]={b111:?} status[0]={st0:?} write 0x86->{wr:?}",
-                    asic::CHIP_ID
-                );
-                let _ = asic.exit_i2c();
-            }
-            Err(e) => warn!("mock enter_i2c failed: {e:?}"),
+        if asic::enter_i2c(&mut asic).is_ok() {
+            let _ = asic::scan_i2c(&mut asic);
+            let mut bflash = [0u8; asic::BFLASH_LEN];
+            let _ = asic::bflash_read(&mut asic, &mut bflash);
+            let mut status = [0u8; 44];
+            let _ = asic::reg_read_n(&mut asic, 0x40, &mut status);
+            let _ = asic::write_reg_protected(&mut asic, 0x86, 0x5A);
+            let _ = asic::reg_read(&mut asic, 0x86);
+            let _ = asic.exit_i2c();
         }
         asic
     };
     #[cfg(not(feature = "mock-asic"))]
     let asic = {
-        info!("usbdisk2: real FT8132 on GPIO48/GPIO4");
-        FT8132::new(
-            peripherals.GPIO48,
-            peripherals.GPIO4,
-            peripherals.I2C0,
-            peripherals.RMT,
-        )
+        info!("usbdisk2: real FT8132 on PB7/PB6");
+        let _ = p.I2C1;
+        let _ = p.PB6;
+        let _ = p.PB7;
+        FT8132::new()
     };
 
-    let usb = Usb::new(peripherals.USB0, peripherals.GPIO20, peripherals.GPIO19);
-    static EP_MEMORY_CELL: StaticCell<[u32; 512]> = StaticCell::new();
+    // Let PLL USB 48 MHz settle before the first USB register access.
+    Timer::after_millis(5).await;
+
     static USB_BUS: StaticCell<UsbBusAllocator<UsbBusType>> = StaticCell::new();
-    
-    let usb_bus = USB_BUS.init(UsbBus::new(usb, EP_MEMORY_CELL.init([0; 512])));
+    let usb_bus = USB_BUS.init(UsbBus::new(UsbHw));
 
     static IO_BUF: StaticCell<[u8; 512]> = StaticCell::new();
     let io_buf_arr = IO_BUF.init([0; 512]);
@@ -502,31 +832,16 @@ async fn main(spawner: Spawner) -> ! {
 
     let scsi = Scsi::new(usb_bus, 64, 0, io_buf).unwrap();
 
-    // device_class(0) means use interface descriptors (MSC is defined there).
     let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x1B3F, 0x8000))
-        // .strings(&[
-        //     StringDescriptors::new(LangID::EN)
-        //         .manufacturer("GENPLUS")
-        //         .product("USB-MSDC DISK A")
-        //         .serial_number("12345678"),
-        // ]).unwrap()
         .device_class(0x00)
-        .max_packet_size_0(64).unwrap()
-        .max_power(0).unwrap()
+        .max_packet_size_0(8)
+        .unwrap()
+        .max_power(100)
+        .unwrap()
         .usb_rev(usb_device::device::UsbRev::Usb200)
         .build();
 
-    spawner.spawn(usb_task(usb_dev, scsi, asic)).unwrap();
-
-    unsafe {
-        interrupt::bind_interrupt(Interrupt::USB, usb_interrupt_handler.handler());
-    }
-    interrupt::enable(Interrupt::USB, usb_interrupt_handler.priority()).unwrap();
-
-    info!("USB initialized!");
-
-    loop {
-        // Main task can do other things
-        Timer::after(Duration::from_secs(1)).await;
-    }
+    usb_irq_enable();
+    USB_SIGNAL.signal(());
+    run_usb(usb_dev, scsi, asic).await;
 }

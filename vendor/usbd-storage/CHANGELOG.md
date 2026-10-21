@@ -1,0 +1,68 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Fixed
+
+- Allow reading data bytes when BBB waits for status from user (https://github.com/apohrebniak/usbd-storage/pull/34)
+- BBB: Limit the amout of bytes in the buffer (https://github.com/apohrebniak/usbd-storage/pull/33)
+- BBB: don't hand a command block to the subclass after an invalid CBW (https://github.com/apohrebniak/usbd-storage/pull/30)
+
+## [3.0.0] - 2026-07-05
+
+### Changed
+
+- BBB: Send/receive all dCBWDataTransferLength data instead of STALLing endpoints (https://github.com/apohrebniak/usbd-storage/pull/26)
+
+### Fixed
+
+- Bounds-check the SCSI CDB parse against short command blocks (https://github.com/apohrebniak/usbd-storage/pull/24)
+- Remove panic paths from the Bulk Only Transport (https://github.com/apohrebniak/usbd-storage/pull/25)
+- Rust 2024 edition (https://github.com/apohrebniak/usbd-storage/pull/22)
+- Fix unsoundness issue in internal use of `BulkOnly`s buffer (https://github.com/apohrebniak/usbd-storage/pull/21)
+
+## [2.0.0] - 2025-11-13
+
+### Changed
+
+- Adds a `extended_addressing` feature that enables 64-bit LBA and 32-bit LEN SCSI commands (https://github.com/apohrebniak/usbd-storage/pull/17)
+- Add RP2040 example (https://github.com/apohrebniak/usbd-storage/pull/16)
+- Store a number of unknown command (https://github.com/apohrebniak/usbd-storage/pull/7)
+- Upgrade defmt to v.1.0.0 (https://github.com/apohrebniak/usbd-storage/pull/14)
+
+## [1.0.0] - 2024-04-16
+
+### Fixed
+
+- Read data into a buffer smaller than BBB's IO buffer (https://github.com/apohrebniak/usbd-storage/pull/6).
+- Cannot fail command while reading data from host (https://github.com/apohrebniak/usbd-storage/pull/5).
+
+### Changed
+
+- Add `#[non_exhaustive]` attribute to ScsiCommand and UfiCommand
+
+## [0.2.0] - 2024-02-05
+
+- Support `usb-device@0.3`.
+
+## [0.1.1] - 2024-02-05
+
+- Restrict `usb-device` dependency to supported versions: < 0.3.
+
+## [0.1.0] - 2023-04-14
+
+- Initial release.
+
+[unreleased]: https://github.com/apohrebniak/usbd-storage/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/apohrebniak/usbd-storage/releases/tag/v3.0.0
+[2.0.0]: https://github.com/apohrebniak/usbd-storage/releases/tag/v2.0.0
+[1.0.0]: https://github.com/apohrebniak/usbd-storage/releases/tag/v1.0.0
+[0.2.0]: https://github.com/apohrebniak/usbd-storage/releases/tag/v0.2.0
+[0.1.1]: https://github.com/apohrebniak/usbd-storage/releases/tag/v0.1.1
+[0.1.0]: https://github.com/apohrebniak/usbd-storage/releases/tag/v0.1.0
+

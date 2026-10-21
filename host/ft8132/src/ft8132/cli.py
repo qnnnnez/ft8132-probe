@@ -8,7 +8,16 @@ from typing import Annotated, Optional
 
 import typer
 
-from .protocol import Protocol, ProtocolError
+from .protocol import (
+    BKMTP_OFF,
+    BMTP_BITS,
+    CMTP_BITS,
+    CMTP_OFF,
+    MTP_BITS,
+    Protocol,
+    ProtocolError,
+    crc16_gui,
+)
 from .regs import (
     decode_ctrl,
     decode_reg,
@@ -25,8 +34,25 @@ from .scsi import ScsiError, ScsiProbe, discover_sg_devices
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 reg_app = typer.Typer(no_args_is_help=True, help="Single-register get/set.")
 regs_app = typer.Typer(no_args_is_help=True, help="Multi-register dump/load.")
+mtp_app = typer.Typer(no_args_is_help=True, help="eFuse/MTP dump, erase, write, verify.")
+lab_app = typer.Typer(
+    no_args_is_help=True,
+    help="Blue Pill SRAM image (FE 10/11) and I2C dialects (FE 20).",
+)
 app.add_typer(reg_app, name="reg")
 app.add_typer(regs_app, name="regs")
+app.add_typer(mtp_app, name="mtp")
+app.add_typer(lab_app, name="lab")
+
+LAB_OPS = {
+    "c2-512": 0,
+    "c2-502": 1,
+    "c2-502x10": 2,
+    "c1-then-c2": 3,
+    "c2-then-c1": 4,
+    "c1-partial-then-c2": 5,
+    "c2-bridge": 6,
+}
 
 
 def parse_int(value: str) -> int:
@@ -218,6 +244,169 @@ def exit_i2c(
         emit({"ok": True})
     finally:
         scsi.close()
+
+
+def _ones(img: bytes, start: int, n: int) -> int:
+    return sum(1 for b in img[start : start + n] if b & 1)
+
+
+@mtp_app.command("dump")
+def mtp_dump(
+    out: Annotated[Optional[Path], typer.Option("-o", "--out", help="1024-byte 0/1 image")] = None,
+    device: DeviceOpt = None,
+    skip_enter: SkipEnterOpt = False,
+) -> None:
+    """Read abflash + cflash + bkflash into a 1024-byte bit image."""
+    scsi, proto = open_protocol(device, skip_enter)
+    try:
+        img = proto.dump_mtp()
+    finally:
+        scsi.close()
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(img)
+    emit(
+        {
+            "path": str(out) if out else None,
+            "len": len(img),
+            "ones": sum(1 for b in img if b & 1),
+            "abflash_ones": _ones(img, 0, BMTP_BITS),
+            "cflash_ones": _ones(img, CMTP_OFF, CMTP_BITS),
+            "bkflash_ones": _ones(img, BKMTP_OFF, BMTP_BITS),
+            "cflash_crc16": f"0x{crc16_gui(img, CMTP_OFF, CMTP_BITS):04x}",
+        }
+    )
+
+
+@mtp_app.command("erase")
+def mtp_erase(
+    device: DeviceOpt = None,
+    skip_enter: SkipEnterOpt = False,
+) -> None:
+    """Chip erase (FD 20). Stops the motor first."""
+    scsi, proto = open_protocol(device, skip_enter)
+    try:
+        proto.write_reg(0x02, 0)
+        proto.write_reg(0x03, 0)
+        proto.erase_mtp()
+        emit({"erased": True})
+    finally:
+        scsi.close()
+
+
+@mtp_app.command("write")
+def mtp_write(
+    bin_path: Annotated[Path, typer.Option("--bin", help="1024-byte 0/1 image")],
+    device: DeviceOpt = None,
+    skip_enter: SkipEnterOpt = False,
+) -> None:
+    """Erase then program bkflash + cflash from a dump."""
+    img = bin_path.read_bytes()
+    if len(img) != MTP_BITS:
+        raise typer.BadParameter(f"{bin_path} is {len(img)} bytes, want {MTP_BITS}")
+    scsi, proto = open_protocol(device, skip_enter)
+    try:
+        proto.write_reg(0x02, 0)
+        proto.write_reg(0x03, 0)
+        proto.write_mtp(img)
+        emit({"wrote": str(bin_path), "len": len(img)})
+    finally:
+        scsi.close()
+
+
+@mtp_app.command("verify")
+def mtp_verify(
+    bin_path: Annotated[Path, typer.Option("--bin", help="Expected 1024-byte 0/1 image")],
+    device: DeviceOpt = None,
+    skip_enter: SkipEnterOpt = False,
+) -> None:
+    """Dump MTP and compare to a previous image."""
+    want = bin_path.read_bytes()
+    if len(want) != MTP_BITS:
+        raise typer.BadParameter(f"{bin_path} is {len(want)} bytes, want {MTP_BITS}")
+    scsi, proto = open_protocol(device, skip_enter)
+    try:
+        got = proto.dump_mtp()
+    finally:
+        scsi.close()
+    mismatch = [i for i, (a, b) in enumerate(zip(want, got, strict=True)) if (a & 1) != (b & 1)]
+    emit(
+        {
+            "ok": not mismatch,
+            "mismatches": len(mismatch),
+            "first": mismatch[:16],
+            "cflash_crc16": f"0x{crc16_gui(got, CMTP_OFF, CMTP_BITS):04x}",
+            "want_cflash_crc16": f"0x{crc16_gui(want, CMTP_OFF, CMTP_BITS):04x}",
+        }
+    )
+    if mismatch:
+        raise SystemExit(1)
+
+
+@lab_app.command("clamp")
+def lab_clamp(
+    release: Annotated[bool, typer.Option("--release", help="Hi-Z both lines")] = False,
+    device: DeviceOpt = None,
+    skip_enter: SkipEnterOpt = True,
+) -> None:
+    """Hold SCL/SDA low so a VIN cycle cannot back-power the FT8132."""
+    scsi, proto = open_protocol(device, skip_enter, do_enter=False)
+    try:
+        proto.lab_clamp(not release)
+    finally:
+        scsi.close()
+    emit({"clamped": not release})
+
+
+@lab_app.command("load")
+def lab_load(
+    bin_path: Annotated[Path, typer.Argument(help="1024-byte 0/1 image")],
+    device: DeviceOpt = None,
+    skip_enter: SkipEnterOpt = False,
+) -> None:
+    """Copy an image into Blue Pill SRAM and read it back. No I2C program."""
+    img = bin_path.read_bytes()
+    if len(img) != MTP_BITS:
+        raise typer.BadParameter(f"{bin_path} is {len(img)} bytes, want {MTP_BITS}")
+    scsi, proto = open_protocol(device, skip_enter)
+    try:
+        proto.lab_load(img)
+        got = proto.lab_read()
+    finally:
+        scsi.close()
+    ok = got == img
+    emit({"loaded": len(img), "sram_ok": ok})
+    if not ok:
+        raise SystemExit(1)
+
+
+@lab_app.command("run")
+def lab_run(
+    dialect: Annotated[str, typer.Argument(help="one of: " + ", ".join(LAB_OPS))],
+    gap_us: Annotated[int, typer.Option("--gap-us", help="Idle between slices, microseconds")] = 1800,
+    erase: Annotated[
+        bool,
+        typer.Option("--erase", help="Chip-erase in this same session, then program"),
+    ] = False,
+    device: DeviceOpt = None,
+    skip_enter: SkipEnterOpt = False,
+) -> None:
+    """Program the SRAM image. A knock after erase will not burn; pass --erase."""
+    op = LAB_OPS.get(dialect)
+    if op is None:
+        raise typer.BadParameter(f"unknown dialect {dialect!r}; use {', '.join(LAB_OPS)}")
+    if not 0 <= gap_us <= 0xFFFF:
+        raise typer.BadParameter("gap_us must fit in 16 bits")
+    scsi, proto = open_protocol(device, skip_enter)
+    try:
+        if erase:
+            proto.write_reg(0x02, 0)
+            proto.write_reg(0x03, 0)
+            proto.erase_mtp()
+        proto.lab_run(op, gap_us)
+    finally:
+        scsi.close()
+    emit({"dialect": dialect, "op": op, "gap_us": gap_us, "erase": erase})
 
 
 @regs_app.command("dump")

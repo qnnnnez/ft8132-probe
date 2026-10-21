@@ -133,8 +133,33 @@ def replay_regs(txs):
     return regs, bytes(bflash) if have_bflash else None, last_ff_read
 
 
+def summarize_mtp(name: str) -> None:
+    """Print F6/F9/FE/FF prefixes from a 1 MHz MTP capture."""
+    _, arr = load_sr(PV / name)
+    txs = i2c_txs(arr)
+    print(f"\n# {name} txs={len(txs)}")
+    last = 0
+    for tx in txs:
+        b = tx.get("bytes") or []
+        if len(b) < 2:
+            continue
+        payload = b[1:]
+        if not payload or payload[0] not in (0xF6, 0xF9, 0xFE, 0xFF, 0xF4):
+            continue
+        t = tx.get("start", 0)
+        gap = t - last if last else 0
+        last = t
+        hx = bytes(payload[:8]).hex()
+        extra = f"+{len(payload) - 8}B" if len(payload) > 8 else ""
+        print(f"  gap={gap:7d} {hx}{extra} n={len(payload)}")
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+
+    for name in ("verify.sr", "erase.sr", "write.sr"):
+        if (PV / name).is_file():
+            summarize_mtp(name)
 
     _, find_arr = load_sr(PV / "find.sr")
     find_txs = i2c_txs(find_arr)

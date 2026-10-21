@@ -18,6 +18,7 @@ SG_DXFER_FROM_DEV = -3
 INQUIRY = 0x12
 SENSE_LEN = 32
 DEFAULT_TIMEOUT_MS = 10_000
+MTP_TIMEOUT_MS = 30_000
 
 
 class SgIoHdr(ctypes.Structure):
@@ -103,6 +104,55 @@ def cdb_exit(*, val0: int = 0, val1: int = 0) -> bytes:
     cdb[1] = 0xFF
     cdb[9] = val1
     cdb[10] = val0
+    return bytes(cdb)
+
+
+def cdb_lab_load(offset: int, length: int) -> bytes:
+    """FE 10: copy OUT bytes into the Blue Pill SRAM image. No I2C."""
+    cdb = _gp_cdb()
+    cdb[0] = 0xFE
+    cdb[1] = 0x10
+    cdb[4:6] = int(offset).to_bytes(2, "big")
+    cdb[7:9] = int(length).to_bytes(2, "big")
+    return bytes(cdb)
+
+
+def cdb_lab_read(offset: int, length: int) -> bytes:
+    """FE 11: read the SRAM image back."""
+    cdb = _gp_cdb()
+    cdb[0] = 0xFE
+    cdb[1] = 0x11
+    cdb[4:6] = int(offset).to_bytes(2, "big")
+    cdb[7:9] = int(length).to_bytes(2, "big")
+    return bytes(cdb)
+
+
+def cdb_lab_clamp(low: bool) -> bytes:
+    """FE 30: drive SCL/SDA low, or release them when low is false."""
+    cdb = _gp_cdb()
+    cdb[0] = 0xFE
+    cdb[1] = 0x30
+    cdb[2] = 1 if low else 0
+    return bytes(cdb)
+
+
+def cdb_lab_run(op: int, gap_us: int) -> bytes:
+    """FE 20: program the SRAM image. gap_us is the idle between slices."""
+    cdb = _gp_cdb()
+    cdb[0] = 0xFE
+    cdb[1] = 0x20
+    cdb[2] = op & 0xFF
+    cdb[4:6] = int(gap_us).to_bytes(2, "big")
+    return bytes(cdb)
+
+
+def cdb_mtp_erase(*, acc: int = 5, opt: int = 40) -> bytes:
+    """FD 20: chip erase (GUI ChipErase1 / write-path erase)."""
+    cdb = _gp_cdb()
+    cdb[0] = 0xFD
+    cdb[1] = 0x20
+    cdb[6] = acc
+    cdb[9] = opt
     return bytes(cdb)
 
 

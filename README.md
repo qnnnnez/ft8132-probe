@@ -1,55 +1,55 @@
 # ft8132-probe
 
-Bare-metal Rust firmware for **ESP32-S3** that probes an **FT8132** (RMT knock → I2C) and experiments with USB device modes (CDC serial and mass storage / SCSI).
+Bare-metal Rust firmware for **STM32F103C6T6** (Blue Pill) that probes an **FT8132** (GPIO knock → I2C) and presents USB mass storage / SCSI to the host.
 
-This is a small probe / experiment repo — the binaries are demos, not a finished product.
+This is a small probe / experiment repo — the binary is a demo, not a finished product.
 
 ## Requirements
 
-- ESP32-S3 board with USB OTG pins available
-- [Espressif Rust toolchain](https://docs.esp-rs.org/book/) (`espup` → `esp` channel; see `rust-toolchain.toml`)
-- [`espflash`](https://github.com/esp-rs/espflash) on `PATH`
-- Rust edition 2024 / rustc ≥ 1.88 (as declared in `Cargo.toml`)
+- STM32F103C6T6 Blue Pill (or a C8; see [Memory](#memory))
+- Stable Rust **1.99** with `thumbv7m-none-eabi` (`rust-toolchain.toml`)
+- [`probe-rs`](https://probe.rs/) on `PATH` and a SWD probe (ST-Link, DAPLink, …)
+- 8 MHz HSE crystal (stock Blue Pill)
 
 ## Hardware
 
 | Function | Pins |
 |----------|------|
-| FT8132 SDA / SCL | GPIO48 / GPIO4 (I2C0 + RMT) |
-| USB OTG D+ / D− | GPIO20 / GPIO19 (`USB0`) |
+| USB D− / D+ | PA11 / PA12 (on-board 1.5 kΩ D+ pull-up) |
+| FT8132 SDA / SCL | PB7 / PB6. Knock is bit-banged on SCL with SDA held low |
 
-GPIO48 is also used by the optional WS2812 helper in `src/led.rs` — don’t enable that alongside FT8132 SDA without remapping.
+Clocks: 8 MHz HSE → PLL ×9 → 72 MHz SYSCLK, USB 48 MHz.
+
+Both I2C lines are open-drain. External 4.7 kΩ resistors to 5 V provide the high. A high is a released pin. PB6 and PB7 are 5 V tolerant only while released.
+
+## Memory
+
+Default [`memory.x`](memory.x) is **C6**: 32 KiB flash, 10 KiB SRAM. USB packet memory (512 B PMA) is **not** taken from SRAM, so a 512-byte SCSI buffer still fits.
+
+Release size of `ft8132-probe` without `mock-asic` (`.vector_table` + `.text` + `.rodata` + `.data` in flash; `.data` + `.bss` in RAM):
+
+| | Used | Limit |
+|--|------|-------|
+| Flash | ~26 KiB | 32 KiB |
+| Static RAM | ~4.7 KiB | 10 KiB |
+
+If a later change does not link on C6, switch `memory.x` to **C8** (64 KiB flash / 20 KiB SRAM) and run with `--chip STM32F103C8`. Same firmware, bigger Blue Pill.
 
 ## Build & flash
 
-Default target is `xtensa-esp32s3-none-elf`. `cargo run` flashes and opens a serial monitor via `espflash`.
+Default target is `thumbv7m-none-eabi`. `cargo run` uses `probe-rs run --chip STM32F103C6`.
 
 ```bash
-# Default binary (ft8132-probe / main.rs)
-cargo build
-cargo run
+# Size-optimized image (recommended)
+cargo build --release
+cargo run --release
 
-# Named binary
-cargo build --bin usbdisk2
-cargo run --bin usbdisk2
-
-# Size-optimized release
-cargo build --release --bin usbdisk2
+# Capture-seeded mock ASIC (no FT8132 on PB7/PB6)
+cargo build --release --features mock-asic
+cargo run --release --features mock-asic
 ```
 
-Log level defaults to `info` (`ESP_LOG` in `.cargo/config.toml`).
-
-## Binaries
-
-| Binary | Source | Purpose |
-|--------|--------|---------|
-| `ft8132-probe` | `src/bin/main.rs` | FT8132 knock + switch to I2C |
-| `usbserial` | `src/bin/usbserial.rs` | USB CDC serial (`usb-device` + `usbd-serial`) |
-| `usbserial2` | `src/bin/usbserial2.rs` | CDC serial with IRQ → Embassy task signaling |
-| `emusbserial` | `src/bin/emusbserial.rs` | Embassy-USB serial experiment |
-| `usbdisk` | `src/bin/usbdisk.rs` | Early USB MSC experiment |
-| `usbdisk2` | `src/bin/usbdisk2.rs` | SCSI / BBB via vendored `usbd-storage` |
-| `usbdisk3` | `src/bin/usbdisk3.rs` | MSC via in-tree `usbd_mass_storage` |
+VID/PID is `0x1B3F`/`0x8000`, SCSI INQUIRY magic `GP-PROD.` — the same identity the official debugger looks for.
 
 ## Host CLI
 
@@ -77,20 +77,35 @@ SUBSYSTEM=="scsi_generic", ATTRS{idVendor}=="1b3f", ATTRS{idProduct}=="8000", MO
 
 `start` / `stop` / `speed` only change the live I2C speed command. They assume Debug parameters are already on the chip.
 
+MTP lab commands (`lab load`, `lab run --erase`, `lab clamp`) use a 1024-byte image in Blue Pill SRAM. See [docs/cflash.md](docs/cflash.md).
+
+## cflash findings
+
+Programming both GenCode halves (CRC `0x77eb`) did not succeed. Details and the ruled-out list are in [docs/cflash.md](docs/cflash.md).
+
+- c2 alone, at page starts 512/640/768, stores 62 ones (CRC `0xb61f`) and survives a VIN cycle.
+- Completing c1 in that same erase cycle erases those ones. The frame at bit 384 is the commit. Power-cycling does not bring them back.
+- The official dongle sends the same `F6` bytes and does store c2. Its gap after `FF C1` is 1.8 ms. A longer USB gap on this full-speed port wipes cflash. Matching the short gap inside one command keeps c1 and still does not store the official 502/630/758 frames, which cross a 128-bit page.
+- A knock between erase and the program `F6` acknowledges the bytes and does not burn the cells.
+- The firmware refuses a program clock unless Find is healthy (`chip id 0x02`, `bflash` `ffff00ff`), the erase is still the current knock session, and the frame is the first slice and stays inside a 128-bit page. The frame at bit 384 is refused.
+- The part on this bench now holds SDA low across a VIN cycle. Find reads zeros. Do not send it another program clock.
+
 ## Layout
 
 ```
 src/
   lib.rs                 # Shared crate
-  ft8132.rs              # FT8132 RMT/I2C driver
-  usbd_mass_storage.rs   # In-tree USB MSC class
+  asic.rs                # HAL-free FT8132 protocol
+  ft8132.rs              # Knock (PB6) + blocking I2C1
+  usb_hw.rs              # stm32-usbd UsbPeripheral (F103 FS)
   hexstring.rs           # Compile-time hex_bytes! macro
-  led.rs                 # WS2812 over RMT
-  bin/                   # Firmware entry points (see table above)
-vendor/usbd-storage/     # Path dependency (BBB + SCSI)
-host/ft8132/             # Python CLI (uv) for usbdisk2 SCSI
+  mock_asic.rs           # --features mock-asic
+  bin/usbdisk2.rs        # Firmware entry (SCSI / BBB)
+vendor/usbd-storage/     # Nested git clone (qnnnnez/usbd-storage); crate in usbd-storage/
+host/ft8132/             # Python CLI (uv)
+memory.x                 # C6 32K/10K (change to C8 64K/20K if needed)
 ```
 
 ## License / vendor
 
-`vendor/usbd-storage` is a vendored copy of the experimental [`usbd-storage`](https://crates.io/crates/usbd-storage) crate; see that directory for its own docs and license terms.
+`vendor/usbd-storage` is a nested git clone of [`qnnnnez/usbd-storage`](https://github.com/qnnnnez/usbd-storage) (fork of [`apohrebniak/usbd-storage`](https://github.com/apohrebniak/usbd-storage)). The firmware path-depends on the crate at `vendor/usbd-storage/usbd-storage`; see that tree for its docs and license terms.

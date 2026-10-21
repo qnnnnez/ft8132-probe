@@ -1,16 +1,8 @@
-[target.xtensa-esp32s3-none-elf]
-runner = "espflash flash --monitor --chip esp32s3"
-
-[env]
-ESP_LOG="info"
-
-[build]
+[target.thumbv7m-none-eabi]
+runner = "probe-rs run --chip STM32F103C6"
 rustflags = [
-  "-C", "link-arg=-nostartfiles",
-  "-Z", "stack-protector=all",
+  "-C", "link-arg=-Tlink.x",
 ]
 
-target = "xtensa-esp32s3-none-elf"
-
-[unstable]
-build-std = ["alloc", "core"]
+[build]
+target = "thumbv7m-none-eabi"

@@ -2,69 +2,72 @@
 
 ## Project
 
-Bare-metal Rust firmware for **ESP32-S3** that:
+Bare-metal Rust firmware for **STM32F103C6T6** (Blue Pill) that:
 
-1. Probes an **FT8132** over RMT “knock” then I2C (`src/ft8132.rs`, `src/bin/main.rs`).
-2. Experiments with **USB device** modes: CDC serial and mass storage / SCSI (`src/bin/usb*.rs`, `src/usbd_mass_storage.rs`).
+1. Probes an **FT8132** over a GPIO “knock” on SCL, then I2C1 (`src/ft8132.rs`).
+2. Speaks USB MSC / SCSI to the host (`src/bin/usbdisk2.rs`) so `host/ft8132/` and FT8132Debugger work.
 
-This is a probe / experiment repo: binaries are small demos, not a polished product.
+This is a probe / experiment repo: the binary is a demo, not a polished product.
 
 ## Stack
 
-- `#![no_std]` + `#![no_main]` firmware; heap via `esp-alloc`
-- Target: `xtensa-esp32s3-none-elf` (see `.cargo/config.toml`)
-- Toolchain: `esp` channel (`rust-toolchain.toml`) — use `espup` / Espressif Rust, not stock stable
-- Async: Embassy + `esp-rtos` (`#[esp_rtos::main]`)
-- HAL: `esp-hal` ~1.0 (`esp32s3`, `unstable` where needed)
-- USB: `esp-hal::otg_fs` + `usb-device`; MSC via vendored `vendor/usbd-storage` and/or in-tree `usbd_mass_storage`
-- Logging: `log` + `esp-println` (`ESP_LOG=info` in cargo config)
+- `#![no_std]` + `#![no_main]` firmware; no heap
+- Target: `thumbv7m-none-eabi` (see `.cargo/config.toml`)
+- Toolchain: **1.99.0** (`rust-toolchain.toml`) — stock stable, not the Espressif `esp` channel
+- Async: Embassy (`#[embassy_executor::main]`)
+- HAL: `embassy-stm32` 0.6 (`stm32f103c6`)
+- USB: `stm32-usbd` + `usb-device`; MSC via nested git clone `vendor/usbd-storage` (crate: `vendor/usbd-storage/usbd-storage`)
+- Panic: `panic-halt` (no `log` / defmt in the firmware image)
 
 ## Layout
 
 | Path | Role |
 |------|------|
-| `src/lib.rs` | Shared crate: `led`, `ft8132`, `hexstring`, `usbd_mass_storage` |
-| `src/bin/main.rs` | Default bin (`ft8132-probe`): FT8132 knock + I2C switch |
-| `src/bin/usbserial*.rs`, `emusbserial.rs` | USB CDC serial experiments |
-| `src/bin/usbdisk*.rs` | USB MSC / SCSI experiments (`usbdisk2` uses `usbd-storage`; `usbdisk3` uses in-tree MSC) |
-| `vendor/usbd-storage/` | Path dependency; prefer minimal local patches |
+| `src/lib.rs` | Shared crate: `asic`, `ft8132`, `hexstring`, `usb_hw` |
+| `src/bin/usbdisk2.rs` | Sole binary (`ft8132-probe`): SCSI CDB dispatch + USB IRQ |
+| `src/asic.rs` | HAL-free FT8132 I2C protocol |
+| `src/ft8132.rs` | Bit-bang knock on PB6 + blocking I2C1 |
+| `src/usb_hw.rs` | `stm32-usbd` `UsbPeripheral` for F103 USB FS |
+| `vendor/usbd-storage/` | Nested git clone of [qnnnnez/usbd-storage](https://github.com/qnnnnez/usbd-storage) (fork of apohrebniak/usbd-storage); crate is `vendor/usbd-storage/usbd-storage` |
+| `host/ft8132/` | Python CLI (`bench` shares it; MTP `dump`/`erase`/`write`/`verify`) |
 
-Bins under `src/bin/` are auto-discovered. Prefer extending an existing bin over adding a new one unless the experiment needs isolation.
+There is a single `[[bin]]`. Prefer extending `usbdisk2` over adding a new binary unless the experiment needs isolation.
 
 ## Hardware (as used in code)
 
-- FT8132: **SDA = GPIO48**, **SCL = GPIO4**, I2C0 + RMT
-- USB OTG FS: **D+ = GPIO20**, **D− = GPIO19**, `USB0`
-- Optional WS2812 on GPIO48 in `led` (conflicts with FT8132 SDA — don’t enable both casually)
+- USB: **PA11 D−**, **PA12 D+** (on-board 1.5 kΩ D+ pull-up)
+- FT8132 I2C1: **PB7 SDA**, **PB6 SCL** (knock is bit-banged on SCL with SDA held low)
+- Clocks: 8 MHz HSE → 72 MHz SYSCLK, USB 48 MHz (`usbpre` ÷1.5)
+- Optional idle LED on **PC13** is not driven
+
+## Memory
+
+`memory.x` is **C6**: 32 KiB flash, 10 KiB SRAM. USB PMA (512 B) is separate from SRAM.
+
+Release `--bin ft8132-probe` (no `mock-asic`) last measured about **20.4 KiB** flash (`.vector_table`+`.text`+`.rodata`) / **2.9 KiB** static RAM (`.data`+`.bss`), so C6 still fits. If a later change overflows flash or RAM, set `memory.x` to **C8** (64 KiB / 20 KiB) and flash with `--chip STM32F103C8`.
 
 ## Build / flash / monitor
 
 ```bash
-# Default binary
-cargo build
-cargo run                    # espflash flash --monitor --chip esp32s3
+# Default binary (ft8132-probe)
+cargo build --release
+cargo run --release              # probe-rs run --chip STM32F103C6
 
-# Named binary
-cargo build --bin usbdisk2
-cargo run --bin usbdisk2
-
-# Release (size-optimized; both profiles use opt-level = "s")
-cargo build --release --bin usbdisk2
+# Mock ASIC (no PB7/PB6 wiring)
+cargo build --release --features mock-asic
 ```
 
-Requires `espflash` on `PATH`. Do not change the default target or drop `build-std = ["alloc", "core"]` without a strong reason.
+Requires `probe-rs` on `PATH` and a SWD probe. Do not change the default target to xtensa or reintroduce `build-std`.
 
-Long commands: wrap with `timeout` (e.g. `timeout 5m cargo build --bin usbdisk2`).
+Long commands: wrap with `timeout` (e.g. `timeout 5m cargo build --release`).
 
 ## Conventions
 
 - Keep firmware `no_std`. Host-only helpers stay out of the firmware crate.
 - Prefer async Embassy tasks; use `StaticCell` for `'static` USB bus / buffers.
-- USB interrupt pattern (see `usbdisk2` / `usbserial2`): handler signals `embassy_sync::Signal`, disables USB IRQ; task polls then re-enables IRQ.
-- Deny `clippy::mem_forget` on esp-hal buffer owners; treat large stacks carefully (`stack-size-threshold = 1024` in `.clippy.toml`).
-- Match existing style: early `esp_bootloader_esp_idf::esp_app_desc!()`, `esp_backtrace as _`, logger init from env.
+- USB interrupt pattern: `USB_LP_CAN1_RX0` signals `embassy_sync::Signal`, disables the IRQ; the USB task polls then re-enables.
 - Use `ft8132_probe::hex_bytes!` for compile-time hex constants when useful.
-- Logging: `log::{info,warn,error}` — not `println!` / defmt unless already in that path.
+- Do not pull `log` / `defmt` into release firmware (flash budget).
 
 ## Boundaries
 
@@ -72,8 +75,8 @@ Long commands: wrap with `timeout` (e.g. `timeout 5m cargo build --bin usbdisk2`
 - Do not add `std`, Tokio, or host networking crates to the firmware package.
 - Do not commit secrets, flash dumps, or large binary artifacts under `target/`.
 - Do not force-push or amend git history unless explicitly asked.
-- Avoid drive-by refactors across unrelated bins; change the bin or module under discussion.
+- Avoid a dual ESP/STM crate: this tree is STM32-only (stable vs `esp` toolchains cannot share one default).
 
 ## When unsure
 
-Prefer the patterns in the nearest similar bin (`usbdisk2` for SCSI/`usbd-storage`, `usbdisk3` for in-tree MSC, `usbserial2` for CDC + IRQ signaling, `main` for FT8132).
+Prefer the patterns in `usbdisk2` (SCSI / `usbd-storage` / USB IRQ) and `ft8132` (knock + blocking I2C).
