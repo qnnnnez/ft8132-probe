@@ -1,6 +1,6 @@
 # Official probe firmware (`ft8132Debugger.bin`)
 
-Measured 2026-10-18 against FT8132Debugger **V1.0.6** on the bench probe (`1b3f:8000`, high-speed, `bcdDevice` 1.00). The archive lives under gitignored `data/official/` — do not commit it. GUI SCSI behavior: [gui.md](gui.md).
+Measured 2026-10-18 against FT8132Debugger **V1.0.6** on the bench probe (`1b3f:8000`, high-speed, `bcdDevice` 1.00). The archive is not in git. Download it and extract to `data/official/` as described in [README.md](README.md). GUI SCSI behavior: [gui.md](gui.md).
 
 `code/ft8132Debugger.bin` (14504 bytes) is ARM code for the **Generalplus GPL32xxx** inside the USB dongle. It is not FT8132 eFuse data and not the Blue Pill image. The Blue Pill firmware is a reimplementation of what this file does after it is running.
 
@@ -83,7 +83,7 @@ Mismatch vs Blue Pill firmware: [cflash.md](cflash.md).
 
 ## ELF for IDA
 
-IDA database: `data/official/FT8132Debugger_V1.0.6/code/ft8132-probe-fw.elf.i64` (204 functions, 48 strings, Hex-Rays). `ft8132Debugger.elf` beside the bin is the same image. Rebuild:
+The `.bin` ships in the V1.0.6 archive at `code/ft8132Debugger.bin`. The ELF and the IDA database `ft8132-probe-fw.elf.i64` (204 functions, 48 strings, Hex-Rays) do not. Build the ELF, open it in IDA, and save the database beside it:
 
 ```bash
 CODE=data/official/FT8132Debugger_V1.0.6/code

@@ -2,7 +2,7 @@
 
 The Fortior app **FT8132Debugger** is a Windows WPF GUI plus native `FTechUsbWrapperDllU.dll`. It uses the same USB MSC / SCSI vendor CDBs as `host/ft8132/`. The dongle is a Generalplus MCU; the RAM image it runs is [probe-fw.md](probe-fw.md).
 
-Official build used on this bench: **V1.0.6** ([download](https://download.fortiortech.com/download?file=files/20260427/FT8132Debugger_V1.0.6.rar&attname=FT8132Debugger_V1.0.6.rar)). The PE FileVersion inside the EXE is still `1.0.5.1`; the window title is `FT8132Debugger V1.0.6`. Extract with `unrar` (RAR 5). Keep the archive under gitignored `data/official/` — do not commit it.
+Official build used on this bench: **V1.0.6** ([download](https://download.fortiortech.com/download?file=files/20260427/FT8132Debugger_V1.0.6.rar&attname=FT8132Debugger_V1.0.6.rar)). The PE FileVersion inside the EXE is still `1.0.5.1`; the window title is `FT8132Debugger V1.0.6`. Extract with `unrar` (RAR 5) under gitignored `data/official/`. `FTechUsbWrapperDllU.dll` is in that same folder. A decompile of the EXE, if you make one, belongs in gitignored `data/ft-debugger-src/`. The rest of the ignored paths are listed in [README.md](README.md#files-that-are-not-in-git).
 
 Firmware identity the GUI looks for:
 

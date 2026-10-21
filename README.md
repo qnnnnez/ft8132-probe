@@ -77,7 +77,7 @@ SUBSYSTEM=="scsi_generic", ATTRS{idVendor}=="1b3f", ATTRS{idProduct}=="8000", MO
 
 `start` / `stop` / `speed` only change the live I2C speed command. They assume Debug parameters are already on the chip.
 
-MTP lab commands (`lab load`, `lab run --erase`, `lab clamp`) use a 1024-byte image in Blue Pill SRAM. See [docs/cflash.md](docs/cflash.md).
+MTP lab commands (`lab load`, `lab run --erase`, `lab clamp`) use a 1024-byte image in Blue Pill SRAM. See [docs/cflash.md](docs/cflash.md). The official debugger archive, GenCode image, and live dumps are not in git: [docs/README.md](docs/README.md#files-that-are-not-in-git).
 
 ## cflash findings
 

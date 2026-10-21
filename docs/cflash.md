@@ -2,7 +2,7 @@
 
 GenCode wants both halves: CRC **`0x77eb`** (210 ones). That result was not reached.
 
-Page-aligned c2 alone does store. After erase, program-clock `F6` at 512/640/768 in the same session reads back CRC **`0xb61f`** (62 ones). Those ones are still there after a VIN cycle. The bytes at bit 512 match [`data/mtp-gencode.bin`](../data/mtp-gencode.bin).
+Page-aligned c2 alone does store. After erase, program-clock `F6` at 512/640/768 in the same session reads back CRC **`0xb61f`** (62 ones). Those ones are still there after a VIN cycle. The bytes at bit 512 match `data/mtp-gencode.bin`. That file is not in git. It is the first 1024 bytes of `UserConfigFile/FT8132_20250923_114955.bin` from the official V1.0.6 archive ([how to obtain the archive](README.md#files-that-are-not-in-git)).
 
 Completing c1 in that same erase cycle erases them. The 118-byte frame at bit 384, that frame cut off at bit 497, a 100 kHz c1, or one pulse per c1 one all end at CRC **`0x384a`** (148 c1 ones, c2 empty). The 48 abflash ones that a normal erase leaves behind are cleared too. A later VIN cycle does not restore them. c1 at 128 and 256 only, with no frame at 384, leaves c2 in place and does not store c1.
 
